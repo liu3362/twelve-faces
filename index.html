@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title data-i18n="app.name">Twelve Faces</title>
+<meta name="description" data-i18n-content="app.desc" content="">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- Web fonts are optional: if they can’t load (e.g. Google is blocked), system fonts are used and the page doesn’t stall -->
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=DM+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;700&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="atmos" id="atmos" aria-hidden="true"></div>
+<div id="app">
+  <header class="bar">
+    <div class="brand" data-i18n="app.name"></div>
+    <div class="bar-r">
+      <button class="pill" id="pill" type="button" hidden></button>
+      <button class="gear" id="setBtn" type="button" data-i18n="hdr.settings"></button>
+      <details class="all" id="all">
+        <summary></summary>
+        <div class="all-list" id="allList"></div>
+      </details>
+    </div>
+  </header>
+
+  <section class="die" id="die">
+    <canvas id="gl" tabindex="0" data-i18n-aria-label="die.aria"></canvas>
+    <div class="shadow"></div>
+    <div class="die-label"><b id="dlName"></b><span id="dlHint" data-i18n="die.hint"></span></div>
+    <div class="nogl" id="nogl"></div>
+  </section>
+
+  <main class="work" id="work">
+    <div class="space-head">
+      <h2 id="spName"></h2>
+      <p id="spTag"></p>
+    </div>
+
+    <section class="card">
+      <h3><span data-i18n="timer.title"></span> <small id="focusToday"></small></h3>
+      <div class="timer">
+        <div class="tdie" id="tdie"><canvas id="tgl" tabindex="0" data-i18n-aria-label="timer.aria"></canvas></div>
+        <div>
+          <div class="t-status" id="tStatus" data-i18n="timer.idle"></div>
+          <div class="t-time" id="tTime">25:00</div>
+          <div class="t-btns">
+            <button class="btn" id="tGo" type="button" data-i18n="timer.start"></button>
+            <button class="btn alt" id="tReset" type="button" data-i18n="timer.reset"></button>
+            <label class="snd"><input type="checkbox" id="snd" checked> <span data-i18n="timer.sound"></span></label>
+            <label class="snd"><input type="checkbox" id="pomo" checked> <span data-i18n="timer.pomo"></span></label>
+          </div>
+          <div class="t-chips" id="tChips"></div>
+        </div>
+      </div>
+      <div class="goal-row">
+        <label for="goalIn" data-i18n="goal.label"></label>
+        <input type="number" id="goalIn" min="0" max="600" step="5" inputmode="numeric" placeholder="0">
+        <span data-i18n="unit.min"></span>
+        <span class="hint" data-i18n="goal.hint"></span>
+      </div>
+    </section>
+
+    <section class="card" id="todayCard">
+      <h3 data-i18n="today.title"></h3>
+      <p class="today-sum" id="todaySum"></p>
+      <div class="tl-wrap">
+        <div class="tl" id="tl" role="img" data-i18n-aria-label="tl.aria"></div>
+        <div class="tl-meta">
+          <span><i class="sw study"></i><span data-i18n="tl.study"></span> <b id="tlStudy">0</b> <span data-i18n="unit.min"></span><i class="sw rest gap"></i><span data-i18n="tl.rest"></span> <b id="tlRest">0</b> <span data-i18n="unit.min"></span><span id="tlOverKey" hidden><i class="sw over gap"></i><span id="tlOverTxt"></span></span></span>
+          <span id="tlScale"></span>
+        </div>
+        <p class="tl-note" id="tlNote" hidden></p>
+      </div>
+      <div class="trows" id="trows"></div>
+      <div class="plan-box" id="planBox">
+        <div class="plan-ask">
+          <label for="availIn" data-i18n="plan.avail"></label>
+          <input type="number" id="availIn" min="15" max="600" step="15" value="120" inputmode="numeric">
+          <span data-i18n="unit.min"></span>
+          <button class="btn alt sm" id="planBtn" type="button" data-i18n="plan.btn"></button>
+        </div>
+        <div class="plan-out" id="planOut" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card" id="askCard">
+      <h3><span data-i18n="ask.title"></span> <small id="askStyle"></small></h3>
+      <p class="ai-line"><span data-i18n="ask.using"></span><span id="aiLine"></span></p>
+      <div class="quick" id="quick"></div>
+      <div class="chat" id="chat" aria-live="polite"></div>
+      <form class="ask-row" id="askForm">
+        <textarea id="q" rows="2" maxlength="1500"></textarea>
+        <button class="btn" id="send" type="submit" data-i18n="ask.send"></button>
+        <button class="btn alt" id="stop" type="button" hidden data-i18n="ask.stop"></button>
+      </form>
+      <div class="ask-opts">
+        <button class="think" id="think" type="button" aria-pressed="true" data-i18n="ask.think"></button>
+        <span id="thinkHint"></span>
+      </div>
+    </section>
+
+    <div class="two">
+      <section class="card">
+        <h3><span data-i18n="todo.title"></span> <small id="todoCount"></small></h3>
+        <ul class="todo-list" id="todos"></ul>
+        <p class="empty" id="todoEmpty" data-i18n="todo.empty"></p>
+        <form class="add-row" id="todoForm">
+          <input type="text" id="todoIn" maxlength="120" autocomplete="off">
+          <button class="btn alt" type="submit" data-i18n="todo.add"></button>
+        </form>
+      </section>
+      <section class="card">
+        <h3><span data-i18n="note.title"></span> <small id="saveNote"></small></h3>
+        <textarea id="note" maxlength="20000"></textarea>
+      </section>
+    </div>
+  </main>
+</div>
+
+<dialog id="settings" class="settings">
+  <form method="dialog" class="set-head">
+    <h2 data-i18n="set.title"></h2>
+    <button class="btn sm" value="close" data-i18n="set.done"></button>
+  </form>
+  <section class="set-sec">
+    <h3 data-i18n="set.lang"></h3>
+    <div class="langs" id="langPick"></div>
+  </section>
+  <section class="set-sec">
+    <h3 data-i18n="shelf.head"></h3>
+    <p class="set-note" data-i18n="shelf.note"></p>
+    <div class="who" id="whoPick"></div>
+    <div class="set-btns"><button class="btn alt sm" id="mkOpen" type="button" data-i18n="shelf.newLong"></button></div>
+    <details class="set-names">
+      <summary data-i18n="names.summary"></summary>
+      <p class="set-note" data-i18n="names.note"></p>
+      <div class="names" id="nameList"></div>
+      <div class="set-btns"><button class="btn alt sm" id="nameReset" type="button" data-i18n="names.reset"></button></div>
+    </details>
+    <div class="set-btns"><button class="btn sm" id="whoApply" type="button" hidden data-i18n="who.apply"></button></div>
+  </section>
+  <section class="set-sec set-fb">
+    <h3 data-i18n="fb.title"></h3>
+    <p class="set-note" data-i18n="fb.note"></p>
+    <div class="set-btns"><a class="btn alt sm fb-link" id="fbLink" target="_blank" rel="noopener" data-i18n="fb.btn"></a></div>
+    <p class="set-note" id="fbHint" hidden data-i18n="fb.hint"></p>
+  </section>
+  <h3 class="set-h3" data-i18n="ai.head"></h3>
+  <p class="set-intro" data-i18n="ai.intro"></p>
+  <div id="provList" class="prov-list"></div>
+  <details class="set-more">
+    <summary data-i18n="bk.summary"></summary>
+    <p data-i18n="bk.note"></p>
+    <div class="set-btns">
+      <button class="btn alt sm" id="bkOut" type="button" data-i18n="bk.out"></button>
+      <label class="btn alt sm file"><span data-i18n="bk.in"></span><input type="file" id="bkIn" accept="application/json,.json" hidden></label>
+      <button class="btn alt sm" id="clrKeys" type="button" data-i18n="bk.clear"></button>
+    </div>
+  </details>
+</dialog>
+
+<dialog id="maker" class="settings maker">
+  <form method="dialog" class="set-head">
+    <h2 data-i18n="mk.title"></h2>
+    <button class="btn alt sm" value="close" data-i18n="mk.close"></button>
+  </form>
+  <div id="mkForm">
+    <div class="mk-kind" role="radiogroup" data-i18n-aria-label="mk.kindAria">
+      <label><input type="radio" name="mkKind" value="major" checked><span data-i18n="mk.major"></span></label>
+      <label><input type="radio" name="mkKind" value="job"><span data-i18n="mk.job"></span></label>
+    </div>
+    <div id="mkMajor">
+      <label class="mk-row"><span data-i18n="mk.school"></span><input id="mkSchool" maxlength="60" data-i18n-placeholder="mk.schoolPh"></label>
+      <label class="mk-row"><span data-i18n="mk.dept"></span><input id="mkDept" maxlength="60" data-i18n-placeholder="mk.deptPh"></label>
+      <label class="mk-row"><span data-i18n="mk.majorL"></span><input id="mkMajorIn" maxlength="60" data-i18n-placeholder="mk.majorPh"></label>
+      <div class="mk-row"><span data-i18n="mk.iam"></span><div class="mk-opts">
+        <label><input type="radio" name="mkSelf" value="0" checked> <span data-i18n="mk.student"></span></label>
+        <label><input type="radio" name="mkSelf" value="1"> <span data-i18n="mk.self"></span></label>
+      </div></div>
+      <div class="mk-row"><span data-i18n="mk.year"></span><div class="mk-opts" id="mkYears"></div></div>
+      <details class="mk-plan">
+        <summary data-i18n="mk.planSum"></summary>
+        <textarea id="mkPlan" rows="6" maxlength="12000" data-i18n-placeholder="mk.planPh"></textarea>
+      </details>
+    </div>
+    <div id="mkJob" hidden>
+      <label class="mk-row"><span data-i18n="mk.jobL"></span><input id="mkJobIn" maxlength="60" data-i18n-placeholder="mk.jobPh"></label>
+    </div>
+    <label class="mk-row"><span data-i18n="mk.req"></span><textarea id="mkReq" rows="2" maxlength="300" data-i18n-placeholder="mk.reqPh"></textarea></label>
+    <p class="set-note" id="mkNote"></p>
+    <div class="set-btns"><button class="btn sm" id="mkGo" type="button" data-i18n="mk.go"></button><button class="btn alt sm" id="mkStop" type="button" hidden data-i18n="mk.stop"></button></div>
+    <p class="mk-msg" id="mkMsg" aria-live="polite"></p>
+  </div>
+  <div id="mkOut" class="mk-out"></div>
+</dialog>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/i18n.js"></script>
+<script src="locales/en.js"></script>
+<script src="locales/es.js"></script>
+<script src="locales/pt-BR.js"></script>
+<script src="locales/fr.js"></script>
+<script src="locales/zh.js"></script>
+<script src="locales/zh-TW.js"></script>
+<script src="locales/ja.js"></script>
+<script src="locales/ko.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/profiles.js"></script>
+<script src="js/app.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/maker.js"></script>
+</body>
+</html>
