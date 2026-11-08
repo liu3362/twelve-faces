@@ -12,6 +12,7 @@ Flip the dodecahedron to step into a subject; flip the small die to start a focu
 - **Today**: set a daily goal per face. The timeline shows the day’s study and rest; time past the daily cap is drawn in a different colour.
 - **Ask AI**: each face has its own teaching style. The AI can also act for you: “add a to-do to review chapter 2, then start 25 minutes”.
 - **Deep thinking**: a toggle under the question box, on by default. It handles hard questions better but is slower and uses more tokens; turn it off for simple ones. Building dice and planning the day never use it.
+- **Beyond today (2.0 prototype)**: tap “Future” at the top for a vertical timeline that runs from the future down to now. Put a goal for learning, a skill or your career at the top with a date; the AI lays stages along the way: weeks near now, then months, quarters and years, concrete up close and deliberately broad far away. Tick off tasks, put this week’s into Today’s to-dos with one tap, keep several goals side by side, and re-plan the rest when life moves. Goals about life itself (marriage, family, fate…) are politely declined: life stays unplanned. Slogan: *See the future. Walk toward it.*
 - **Several AIs with automatic fallback**: add keys from a few providers; the first one is used first, and when it runs out of quota or fails, the next one takes over.
 
 No sign-up and no server. Everything (to-dos, notes, timer history, keys) stays in your own browser.
@@ -82,6 +83,7 @@ js/app.js         the dice, timer, to-dos, notes, timeline and Ask AI
 js/ai.js          one interface to many AI providers, with automatic fallback
 js/settings.js    settings: language, shelf, feedback, AI keys, backups
 js/maker.js       new dice (AI builds them by major and year, or by job)
+js/future.js      Beyond today: goals and the vertical future timeline
 vendor/three.min.js  three.js r128 (MIT licence, see vendor/three.LICENSE)
 ```
 

@@ -76,7 +76,7 @@
     var data = {};
     for (var i = 0; i < localStorage.length; i++) {
       var k = localStorage.key(i);
-      if (/^(ds[:-]|tf-(sets|names-|profile))/.test(k)) data[k] = localStorage.getItem(k);
+      if (/^(ds[:-]|tf-(sets|names-|profile|goals))/.test(k)) data[k] = localStorage.getItem(k);
     }
     var blob = new Blob([JSON.stringify({ app: 'twelve-faces', v: 1, at: new Date().toISOString(), data: data }, null, 1)], { type: 'application/json' });
     var a = document.createElement('a');
@@ -92,7 +92,7 @@
         var j = JSON.parse(r.result);
         if (!j || j.app !== 'twelve-faces' || !j.data) throw 0;
         if (!confirm(t('bk.confirm'))) return;
-        Object.keys(j.data).forEach(function (k) { if (/^(ds[:-]|tf-(sets|names-|profile))/.test(k)) localStorage.setItem(k, j.data[k]); });
+        Object.keys(j.data).forEach(function (k) { if (/^(ds[:-]|tf-(sets|names-|profile|goals))/.test(k)) localStorage.setItem(k, j.data[k]); });
         location.reload();
       } catch (e) { alert(t('bk.bad')); }
     };

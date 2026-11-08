@@ -17,6 +17,7 @@
     <div class="brand" data-i18n="app.name"></div>
     <div class="bar-r">
       <button class="pill" id="pill" type="button" hidden></button>
+      <button class="gear" id="fuBtn" type="button" aria-expanded="false" aria-controls="future" data-i18n="fu.btn"></button>
       <button class="gear" id="setBtn" type="button" data-i18n="hdr.settings"></button>
       <details class="all" id="all">
         <summary></summary>
@@ -119,6 +120,15 @@
   </main>
 </div>
 
+<aside id="future" class="future" hidden data-i18n-aria-label="fu.aria">
+  <div class="fu-head">
+    <div><h2 data-i18n="fu.title"></h2><p data-i18n="fu.slogan"></p></div>
+    <button class="gear" id="fuClose" type="button" data-i18n="fu.close"></button>
+  </div>
+  <div class="fu-tabs" id="fuTabs"></div>
+  <div class="fu-body" id="fuBody"></div>
+</aside>
+
 <dialog id="settings" class="settings">
   <form method="dialog" class="set-head">
     <h2 data-i18n="set.title"></h2>
@@ -211,5 +221,6 @@
 <script src="js/app.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/maker.js"></script>
+<script src="js/future.js"></script>
 </body>
 </html>

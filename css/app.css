@@ -109,10 +109,16 @@
   .bar-r { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; }
   /* longer languages: when the timer pill shows up, the app name gives way first, then the pill shortens */
   .bar-r .pill { min-width: 0; flex: 0 1 auto; display: inline-flex; align-items: center; white-space: pre; overflow: hidden; }
+  .bar-r .pill[hidden] { display: none; }  /* display:inline-flex above would otherwise override the hidden attribute */
   .pill > span { flex: none; }
   .pill > .pw { flex: 0 1 auto; min-width: 1.5em; overflow: hidden; text-overflow: ellipsis; }
   .bar-r .gear, .bar-r .all { flex: 0 0 auto; }
   @media (max-width: 480px) {
+    .bar-r .gear, .bar-r .all summary { padding-inline: 9px; }
+    /* the All-subjects list hangs from the whole header, so it stays on screen wherever its button ends up */
+    .bar { position: relative; }
+    .all { position: static; }
+    .all-list { max-width: 100%; box-sizing: border-box; }
     .bar { gap: 6px; }
     .bar-r { gap: 6px; }
     .bar:has(.pill:not([hidden])) .brand { display: none; }
@@ -203,8 +209,15 @@
   .goal-row .hint { color: var(--muted); font-size: 12px; }
   .btn.sm { height: 36px; padding: 0 14px; }
   .today-sum { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
-  .trows { display: flex; flex-direction: column; gap: 4px; }
-  .trow { appearance: none; border: 0; background: transparent; color: var(--fg); display: grid; grid-template-columns: 3.2em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 6px; border-radius: 8px; cursor: pointer; text-align: left; font: 14px/1.3 var(--f-body); }
+  /* Today's rows share one set of columns: the name column is as wide as the longest name, up to 42% of the card;
+     longer names are cut with "…" (full name on hover). So names never run into the bars, and every bar starts at the same x. */
+  .trows { display: grid; grid-template-columns: fit-content(42%) minmax(0, 1fr) auto; column-gap: 10px; row-gap: 4px; }
+  .trow { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; appearance: none; border: 0; background: transparent; color: var(--fg); align-items: center; padding: 7px 6px; border-radius: 8px; cursor: pointer; text-align: left; font: 14px/1.3 var(--f-body); }
+  .trow .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @supports not (grid-template-columns: subgrid) {
+    .trows { display: flex; flex-direction: column; }
+    .trow { grid-template-columns: minmax(0, 8em) minmax(0, 1fr) auto; column-gap: 10px; }
+  }
   .trow:hover, .trow[aria-current="true"] { background: var(--soft); }
   .trow .meter { display: block; height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
   .trow[aria-current="true"] .meter { background: var(--line); }
@@ -348,3 +361,68 @@
   .langs { display: flex; gap: 8px; flex-wrap: wrap; }
   .lang-opt { appearance: none; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 999px; padding: 7px 16px; font: 600 14px/1.2 var(--f-body); cursor: pointer; }
   .lang-opt[aria-pressed="true"] { border-color: var(--accent); background: var(--soft); color: var(--accent); }
+
+  /* ---- Beyond today: the vertical timeline from the future down to now ---- */
+  .future { position: fixed; z-index: 40; top: 0; right: 0; bottom: 0; width: min(420px, 100vw); box-sizing: border-box; background: var(--pop); color: var(--fg);
+    border-left: 1px solid var(--line); box-shadow: -12px 0 32px var(--shadow); display: flex; flex-direction: column; animation: fu-in .25s ease-out; }
+  .future[hidden] { display: none; }
+  @keyframes fu-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .future { animation: none; } }
+  .fu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 8px; }
+  .fu-head h2 { margin: 0; font: 700 18px/1.25 var(--f-sans); }
+  .fu-head p { margin: 2px 0 0; font-size: 13px; color: var(--accent); }
+  .fu-tabs { display: flex; gap: 6px; padding: 4px 16px 10px; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); }
+  .fu-chip { flex: none; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; appearance: none; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 999px; padding: 6px 12px; font: 600 13px/1.2 var(--f-body); cursor: pointer; }
+  .fu-chip[aria-pressed="true"] { border-color: hsl(var(--gh, var(--h)) 55% 48%); background: var(--soft); }
+  .fu-chip[style*="--gh"]::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: hsl(var(--gh) 60% 50%); }
+  .fu-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+
+  .fu-form { display: flex; flex-direction: column; gap: 12px; }
+  .fu-intro { margin: 0; font-size: 14px; color: var(--muted); }
+  .fu-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .fu-field input, .fu-field textarea, .fu-face { box-sizing: border-box; width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel); color: var(--fg); font: 15px/1.4 var(--f-body); }
+  .fu-field textarea { resize: vertical; }
+  .fu-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .fu-msg { margin: 6px 0 0; font-size: 13px; color: var(--muted); min-height: 1em; white-space: pre-wrap; }
+  .fu-msg.bad { color: hsl(5 70% 48%); }
+
+  .axis { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 2px 0 2px 26px; --g: hsl(var(--gh, var(--h)) 58% 48%); }
+  /* the line is faint and broken high up (the far future is uncertain) and solid at the bottom (now) */
+  .axis::before { content: ""; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px;
+    background: linear-gradient(to bottom, transparent, hsl(var(--gh, var(--h)) 55% 50% / .4) 18%, hsl(var(--gh, var(--h)) 58% 48%)); }
+  .ax-node { position: relative; --g: hsl(var(--gh, var(--h)) 58% 48%); }
+  .ax-dot { position: absolute; left: -24px; top: 13px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; background: var(--pop); border: 2px solid var(--g); }
+  .ax-dot.full { background: var(--g); }
+  .ax-dot.flag { width: 14px; height: 14px; left: -25px; top: 12px; border-radius: 3px; background: var(--g); transform: rotate(45deg); }
+  .ax-node.cur .ax-dot { box-shadow: 0 0 0 4px hsl(var(--gh, var(--h)) 60% 50% / .25); }
+  .ax-node.now .ax-dot { background: var(--g); }
+  .ax-card { box-sizing: border-box; width: 100%; display: flex; flex-direction: column; gap: 3px; text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--panel); color: var(--fg); font: 14px/1.4 var(--f-body); }
+  button.ax-card { appearance: none; cursor: pointer; }
+  button.ax-card:hover { border-color: var(--g); }
+  .ax-card.plain { border: 0; background: transparent; padding: 7px 0; font-weight: 700; color: var(--g); }
+  .ax-card b { font-weight: 700; }
+  .ax-card small { font-size: 12px; color: var(--muted); }
+  .ax-kicker { text-transform: uppercase; letter-spacing: .06em; color: var(--g) !important; font-weight: 700; }
+  .ax-sum, .ax-now { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+  .ax-now { color: var(--fg); }
+  .ax-hint { margin: 0; font-size: 12px; color: var(--muted); font-style: italic; }
+  .ax-node.goal .ax-card { border-color: var(--g); }
+  .ax-node.cur .ax-card { border-color: var(--g); background: var(--soft); }
+  /* the farther the stage, the fainter and rougher: it gets clear as it gets close */
+  .ax-node[data-far="1"] .ax-card { opacity: .88; }
+  .ax-node[data-far="2"] .ax-card { opacity: .72; border-style: dashed; }
+  .ax-node[data-far="3"] .ax-card { opacity: .56; border-style: dashed; }
+  .ax-node.past .ax-card { opacity: .7; }
+  .st-h { display: flex; flex-direction: column; gap: 1px; }
+  .st-tasks { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .st-tasks li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+  .st-tasks li.done .t { text-decoration: line-through; color: var(--muted); }
+  .st-tasks input { margin: 3px 0 0; flex: none; accent-color: var(--g); }
+  .st-tasks .t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .st-pushed { flex: none; font-style: normal; font-size: 11px; color: var(--g); }
+  .st-put { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .st-put .fu-face { flex: 1 1 auto; min-width: 0; width: auto; padding: 6px 8px; font-size: 13px; height: 36px; }
+  .fu-passed { margin-top: 14px; font-size: 13px; }
+  .fu-passed summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
+  .fu-miss { margin: 12px 0 0; font-size: 13px; color: var(--over); }
+  .fu-goal .fu-btns { margin-top: 16px; }

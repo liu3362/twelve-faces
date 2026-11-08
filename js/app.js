@@ -436,6 +436,18 @@
     PROFILES.setProfile(pid);
     setTimeout(function () { location.reload(); }, 60);
   };
+  /* small hooks for the "Beyond today" panel (js/future.js) */
+  window.TFApp = {
+    faces: function () { return SUBJECTS.map(function (s) { return { key: s.key, name: s.name }; }); },
+    cur: function () { return cur || SUBJECTS[0].key; },
+    faceName: function (key) { return byKey[key] ? byKey[key].name : key; },
+    addTodo: function (key, text) {
+      return loadSpace(key).then(function (d) {
+        d.todos.push({ id: uid(), t: String(text).slice(0, 120), done: false }); persist(key);
+        if (key === cur) renderTodos();
+      });
+    }
+  };
   /* language: switching reloads the page so every text comes from the new language pack */
   window.switchLang = function (lang) {
     if (lang === I18N.lang()) return;
@@ -558,7 +570,7 @@
       var b = document.createElement('button'); b.type = 'button'; b.className = 'trow';
       b.style.setProperty('--rh', s.hue);
       b.setAttribute('aria-current', s.key === cur ? 'true' : 'false');
-      var nm = document.createElement('span'); nm.textContent = s.name;
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = s.name; nm.title = s.name;
       var bar = document.createElement('span'); bar.className = 'meter';
       var fill = document.createElement('i');
       fill.style.width = (g ? Math.min(100, Math.round(f / g * 100)) : (f ? 100 : 0)) + '%';
