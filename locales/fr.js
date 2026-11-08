@@ -626,5 +626,17 @@ I18N.add('fr', {
   "fu.missed": "{n} tâches précédentes ne sont pas terminées. Vous pouvez replanifier la suite selon le temps restant.",
   "fu.redo": " Déjà fait jusqu’ici : {done}. Ne planifiez que ce qui reste.",
   "fu.sys": "Vous êtes un planificateur sérieux d’études et de carrière. Vous transformez des objectifs en chemins réalistes et ne promettez jamais de résultat. Donnez directement le résultat, sans explication.",
-  "fu.prompt": "Nous sommes le {today}. Quelqu’un veut atteindre cet objectif le {date} (dans {days} jours) : {goal}\nOù il en est : {level}\nTemps disponible : environ {hours} heures par semaine.{redo}\n\nVérifiez d’abord le périmètre. Seuls les objectifs d’études, de compétences et de carrière peuvent être planifiés. Si l’objectif concerne la vie elle-même (mariage, famille, relations, santé, chance, destin…), répondez uniquement {\"ok\":false,\"reason\":\"une phrase bienveillante, de moins de 25 mots, disant qu’il vaut mieux ne pas planifier cela\"}.\n\nSinon, tracez le chemin vers l’objectif en suivant les étapes ci-dessous (indice | durée | dates), dans l’ordre. Pour chaque étape, écrivez un intitulé (moins de 10 mots) disant ce qui doit être acquis à la fin. Étapes d’une semaine : 2 ou 3 tâches concrètes, chacune de moins de 14 mots et réalisable dans les heures hebdomadaires. Étapes d’un mois : 1 ou 2 jalons sous forme de tâches. Étapes d’un trimestre ou d’un semestre : aucune tâche, liste vide. Soyez concret près d’aujourd’hui et volontairement large plus loin, car l’avenir est incertain. Écrivez en français. Répondez uniquement en JSON, rien d’autre, dans ce format : {\"ok\":true,\"summary\":\"tout le chemin en moins de 25 mots\",\"stages\":[{\"i\":0,\"label\":\"...\",\"tasks\":[\"...\"]}]}\n\nÉtapes :\n{stages}"
+  "fu.prompt": "Nous sommes le {today}. Quelqu’un veut atteindre cet objectif le {date} (dans {days} jours) : {goal}\nOù il en est : {level}\nTemps disponible : environ {hours} heures par semaine.{redo}\n\nVérifiez d’abord le périmètre. Seuls les objectifs d’études, de compétences et de carrière peuvent être planifiés. Si l’objectif concerne la vie elle-même (mariage, famille, relations, santé, chance, destin…), répondez uniquement {\"ok\":false,\"reason\":\"une phrase bienveillante, de moins de 25 mots, disant qu’il vaut mieux ne pas planifier cela\"}.\n\nSinon, tracez le chemin vers l’objectif en suivant les étapes ci-dessous (indice | durée | dates), dans l’ordre. Pour chaque étape, écrivez un intitulé (moins de 10 mots) disant ce qui doit être acquis à la fin. Étapes d’une semaine : 2 ou 3 tâches concrètes, chacune de moins de 14 mots et réalisable dans les heures hebdomadaires. Étapes d’un mois : 1 ou 2 jalons sous forme de tâches. Étapes d’un trimestre ou d’un semestre : aucune tâche, liste vide. Soyez concret près d’aujourd’hui et volontairement large plus loin, car l’avenir est incertain. Écrivez en français. Répondez uniquement en JSON, rien d’autre, dans ce format : {\"ok\":true,\"summary\":\"tout le chemin en moins de 25 mots\",\"stages\":[{\"i\":0,\"label\":\"...\",\"tasks\":[\"...\"]}]}\n\nÉtapes :\n{stages}",
+  "fu.m.w1": "1 sem.",
+  "fu.m.m1": "1 mois",
+  "fu.m.m3": "3 mois",
+  "fu.m.m6": "6 mois",
+  "fu.m.y1": "1 an",
+  "fu.m.y2": "2 ans",
+  "fu.ghost": "Vers où ?",
+  "fu.manage": "Plus",
+  "fu.noTasks": "Pas encore de tâches. Elles apparaissent à mesure que cette étape se rapproche.",
+  "fu.sceneAria": "Un chemin depuis vous, en bas, jusqu’à votre objectif au loin. Plus c’est loin, plus c’est haut et brumeux.",
+  "fu.stageAria": "{label}, {range}",
+  "fu.here": "Vous êtes ici"
 });

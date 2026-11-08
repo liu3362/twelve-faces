@@ -626,5 +626,17 @@ I18N.add('en', {
   "fu.missed": "{n} earlier tasks weren’t finished. Re-plan the rest to fit the time left.",
   "fu.redo": " Already done so far: {done}. Plan only what is left.",
   "fu.sys": "You are a careful study and career planner. You turn goals into realistic paths and never promise results. Output the result directly, without explanation.",
-  "fu.prompt": "Today is {today}. Someone wants to reach this goal on {date} ({days} days from now): {goal}\nWhere they are now: {level}\nTime they can give: about {hours} hours a week.{redo}\n\nFirst check the scope. Only goals about learning, skills and careers can be planned. If the goal is about life itself (marriage, family, relationships, health, luck, fate…), output {\"ok\":false,\"reason\":\"one kind sentence, under 25 words, saying this is better left unplanned\"} and nothing else.\n\nOtherwise lay a path to the goal along the stages below (index | length | dates), in order. For each stage write a label (under 10 words) saying what should be true by the end of it. Week stages: 2 to 3 concrete tasks, each under 14 words and doable within the weekly hours. Month stages: 1 to 2 milestones as tasks. Quarter and half-year stages: no tasks, an empty list. Be concrete near today and deliberately broad further out, because the future is uncertain. Write in English. Output only JSON, nothing else, in this format: {\"ok\":true,\"summary\":\"the whole path in under 25 words\",\"stages\":[{\"i\":0,\"label\":\"...\",\"tasks\":[\"...\"]}]}\n\nStages:\n{stages}"
+  "fu.prompt": "Today is {today}. Someone wants to reach this goal on {date} ({days} days from now): {goal}\nWhere they are now: {level}\nTime they can give: about {hours} hours a week.{redo}\n\nFirst check the scope. Only goals about learning, skills and careers can be planned. If the goal is about life itself (marriage, family, relationships, health, luck, fate…), output {\"ok\":false,\"reason\":\"one kind sentence, under 25 words, saying this is better left unplanned\"} and nothing else.\n\nOtherwise lay a path to the goal along the stages below (index | length | dates), in order. For each stage write a label (under 10 words) saying what should be true by the end of it. Week stages: 2 to 3 concrete tasks, each under 14 words and doable within the weekly hours. Month stages: 1 to 2 milestones as tasks. Quarter and half-year stages: no tasks, an empty list. Be concrete near today and deliberately broad further out, because the future is uncertain. Write in English. Output only JSON, nothing else, in this format: {\"ok\":true,\"summary\":\"the whole path in under 25 words\",\"stages\":[{\"i\":0,\"label\":\"...\",\"tasks\":[\"...\"]}]}\n\nStages:\n{stages}",
+  "fu.m.w1": "1 wk",
+  "fu.m.m1": "1 mo",
+  "fu.m.m3": "3 mo",
+  "fu.m.m6": "6 mo",
+  "fu.m.y1": "1 yr",
+  "fu.m.y2": "2 yr",
+  "fu.ghost": "Where to?",
+  "fu.manage": "More",
+  "fu.noTasks": "No tasks yet. They appear as this stage gets closer.",
+  "fu.sceneAria": "A road from you, at the bottom, to your goal in the distance. The farther away, the higher up and hazier.",
+  "fu.stageAria": "{label}, {range}",
+  "fu.here": "You are here"
 });

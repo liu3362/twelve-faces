@@ -362,20 +362,75 @@
   .lang-opt { appearance: none; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 999px; padding: 7px 16px; font: 600 14px/1.2 var(--f-body); cursor: pointer; }
   .lang-opt[aria-pressed="true"] { border-color: var(--accent); background: var(--soft); color: var(--accent); }
 
-  /* ---- Beyond today: the vertical timeline from the future down to now ---- */
-  .future { position: fixed; z-index: 40; top: 0; right: 0; bottom: 0; width: min(420px, 100vw); box-sizing: border-box; background: var(--pop); color: var(--fg);
+  /* ---- Beyond today: a road from the future down to you ---- */
+  .future { position: fixed; z-index: 40; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); box-sizing: border-box; background: var(--pop); color: var(--fg);
     border-left: 1px solid var(--line); box-shadow: -12px 0 32px var(--shadow); display: flex; flex-direction: column; animation: fu-in .25s ease-out; }
   .future[hidden] { display: none; }
   @keyframes fu-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .future { animation: none; } }
-  .fu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 8px; }
+  .fu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 6px; flex: none; }
   .fu-head h2 { margin: 0; font: 700 18px/1.25 var(--f-sans); }
   .fu-head p { margin: 2px 0 0; font-size: 13px; color: var(--accent); }
-  .fu-tabs { display: flex; gap: 6px; padding: 4px 16px 10px; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); }
+  .fu-tabs { display: flex; gap: 6px; padding: 4px 16px 10px; overflow-x: auto; flex: none; }
   .fu-chip { flex: none; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; appearance: none; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 999px; padding: 6px 12px; font: 600 13px/1.2 var(--f-body); cursor: pointer; }
   .fu-chip[aria-pressed="true"] { border-color: hsl(var(--gh, var(--h)) 55% 48%); background: var(--soft); }
   .fu-chip[style*="--gh"]::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: hsl(var(--gh) 60% 50%); }
-  .fu-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+
+  /* the scene: sky, floor, road, bands and floating dice are one SVG, drawn in perspective by js/future.js */
+  .fu-scene { --g: hsl(var(--gh, var(--h)) 58% 46%);
+    --sky1: hsl(var(--gh, var(--h)) 55% 80%); --horizon: hsl(var(--gh, var(--h)) 60% 92%); --glow: hsl(var(--gh, var(--h)) 95% 86%);
+    --floor1: hsl(var(--gh, var(--h)) 30% 90%); --floor2: hsl(var(--gh, var(--h)) 22% 97%); --road: hsl(var(--gh, var(--h)) 45% 99%);
+    --fog: hsl(var(--gh, var(--h)) 40% 95%); --shadow-c: hsl(var(--gh, var(--h)) 45% 22%); --edge: hsl(var(--gh, var(--h)) 50% 38%);
+    flex: 1 1 0; min-height: 230px; position: relative; overflow: hidden; border-block: 1px solid var(--line); }
+  .fu-scene svg { display: block; width: 100%; height: 100%; }
+  .fu-scene .ray { stroke: hsl(var(--gh, var(--h)) 40% 40% / .12); stroke-width: 1; }
+  .fu-scene .edge { stroke: var(--edge); stroke-opacity: .5; stroke-width: 1.2; }
+  .fu-scene .dashes line { stroke: hsl(var(--gh, var(--h)) 50% 40% / .38); stroke-linecap: round; }
+  .fu-scene .mark { stroke: hsl(var(--gh, var(--h)) 40% 35% / .22); stroke-dasharray: 2 5; }
+  .fu-scene .mk, .fu-scene .dt, .fu-scene .here-t { fill: var(--muted); font-family: var(--f-body); }
+  .fu-scene .here-t { fill: var(--g); font-weight: 700; }
+  .fu-scene .lbl { fill: var(--fg); font-family: var(--f-body); font-weight: 600; pointer-events: none; }
+  .fu-scene .lead { stroke: var(--muted); stroke-opacity: .5; stroke-width: 1; }
+  .fu-scene .goal-t { fill: var(--fg); font: 700 14px var(--f-head); pointer-events: none; paint-order: stroke; stroke: var(--sky1); stroke-width: 3px; stroke-opacity: .5; }
+  .fu-scene .goal-t.sm { font-size: 12px; stroke: var(--horizon); stroke-opacity: .8; }
+  .fu-scene .dt { paint-order: stroke; stroke: var(--horizon); stroke-width: 3px; stroke-opacity: .7; }
+  .fu-scene .halo { pointer-events: none; }
+  .fu-scene .pt { fill: var(--g); stroke: var(--pop); stroke-width: 2; }
+  .fu-scene .ping { fill: none; stroke: var(--g); stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: fu-ping 2.4s ease-out infinite; }
+  @keyframes fu-ping { from { transform: scale(1); opacity: .8; } to { transform: scale(3.2); opacity: 0; } }
+
+  .fu-scene .band { cursor: pointer; outline: none; }
+  .fu-scene .band polygon { fill: hsl(var(--gh, var(--h)) 60% 52% / .16); stroke: hsl(var(--gh, var(--h)) 55% 40% / .25); stroke-width: .8; transition: fill .2s; }
+  .fu-scene .band.odd polygon { fill: hsl(var(--gh, var(--h)) 60% 52% / .28); }
+  .fu-scene .band.cur polygon { fill: hsl(var(--gh, var(--h)) 65% 50% / .38); }
+  .fu-scene .band.full polygon { fill: hsl(var(--gh, var(--h)) 65% 46% / .62); }
+  .fu-scene .band:hover polygon { fill: hsl(var(--gh, var(--h)) 65% 50% / .5); }
+  .fu-scene .band.sel polygon, .fu-scene .band:focus-visible polygon { stroke: var(--g); stroke-width: 2.2; }
+  .fu-scene .band.full .lbl.in { fill: var(--pop); }
+  .fu-scene .pip { fill: none; stroke: var(--g); stroke-width: 1.4; }
+  .fu-scene .pip.on { fill: var(--g); }
+  .fu-scene .band.full .pip { stroke: var(--pop); } .fu-scene .band.full .pip.on { fill: var(--pop); }
+
+  /* the dodecahedron: twelve faces, lit one by one as the goal fills in */
+  .fu-scene .die polygon { stroke: var(--edge); stroke-width: 1.4; stroke-linejoin: round; }
+  .fu-scene .die .lit { fill: hsl(var(--gh, var(--h)) 78% 62%); }
+  .fu-scene .die .dim { fill: hsl(var(--gh, var(--h)) 35% 96%); }
+  .fu-scene .die[role="button"] { cursor: pointer; outline: none; }
+  .fu-scene .die[role="button"]:focus-visible polygon { stroke-width: 2.2; }
+  .fu-scene .die.ghost polygon { fill: none; stroke-dasharray: 3 4; stroke-opacity: .6; }
+  .fu-scene.working .die { animation: fu-pulse 1.2s ease-in-out infinite alternate; }
+  @keyframes fu-pulse { from { opacity: .45; } to { opacity: 1; } }
+
+  /* once, on opening or switching: the stages rise out of the horizon toward you, the goal fades in first */
+  .fu-scene.intro .band { transform-box: fill-box; transform-origin: 50% 0; animation: fu-rise .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--n, 0) * 55ms + 150ms); }
+  @keyframes fu-rise { from { opacity: 0; transform: translateY(var(--dy, -80px)) scale(.5, .2); } to { opacity: 1; transform: none; } }
+  .fu-scene.intro .die.arrive { animation: fu-arrive .9s ease-out both; }
+  @keyframes fu-arrive { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .future, .fu-scene .ping, .fu-scene.working .die { animation: none; } .fu-scene.intro .band, .fu-scene.intro .die.arrive { animation: none; } }
+
+  [data-mode="ghost"] .fu-scene { flex: 0 0 200px; min-height: 0; }
+  .fu-sheet { flex: 0 1 auto; max-height: 46%; overflow-y: auto; padding: 12px 16px calc(18px + env(safe-area-inset-bottom, 0px)); }
+  [data-mode="ghost"] .fu-sheet { flex: 1 1 0; max-height: none; }
+  [data-mode="all"] .fu-sheet { max-height: 42%; }
 
   .fu-form { display: flex; flex-direction: column; gap: 12px; }
   .fu-intro { margin: 0; font-size: 14px; color: var(--muted); }
@@ -383,46 +438,52 @@
   .fu-field input, .fu-field textarea, .fu-face { box-sizing: border-box; width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel); color: var(--fg); font: 15px/1.4 var(--f-body); }
   .fu-field textarea { resize: vertical; }
   .fu-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-  .fu-msg { margin: 6px 0 0; font-size: 13px; color: var(--muted); min-height: 1em; white-space: pre-wrap; }
+  .fu-msg { margin: 8px 0 0; font-size: 13px; color: var(--muted); min-height: 1em; white-space: pre-wrap; }
   .fu-msg.bad { color: hsl(5 70% 48%); }
 
-  .axis { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 2px 0 2px 26px; --g: hsl(var(--gh, var(--h)) 58% 48%); }
-  /* the line is faint and broken high up (the far future is uncertain) and solid at the bottom (now) */
-  .axis::before { content: ""; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px;
-    background: linear-gradient(to bottom, transparent, hsl(var(--gh, var(--h)) 55% 50% / .4) 18%, hsl(var(--gh, var(--h)) 58% 48%)); }
-  .ax-node { position: relative; --g: hsl(var(--gh, var(--h)) 58% 48%); }
-  .ax-dot { position: absolute; left: -24px; top: 13px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; background: var(--pop); border: 2px solid var(--g); }
-  .ax-dot.full { background: var(--g); }
-  .ax-dot.flag { width: 14px; height: 14px; left: -25px; top: 12px; border-radius: 3px; background: var(--g); transform: rotate(45deg); }
-  .ax-node.cur .ax-dot { box-shadow: 0 0 0 4px hsl(var(--gh, var(--h)) 60% 50% / .25); }
-  .ax-node.now .ax-dot { background: var(--g); }
-  .ax-card { box-sizing: border-box; width: 100%; display: flex; flex-direction: column; gap: 3px; text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--panel); color: var(--fg); font: 14px/1.4 var(--f-body); }
-  button.ax-card { appearance: none; cursor: pointer; }
-  button.ax-card:hover { border-color: var(--g); }
-  .ax-card.plain { border: 0; background: transparent; padding: 7px 0; font-weight: 700; color: var(--g); }
-  .ax-card b { font-weight: 700; }
-  .ax-card small { font-size: 12px; color: var(--muted); }
-  .ax-kicker { text-transform: uppercase; letter-spacing: .06em; color: var(--g) !important; font-weight: 700; }
-  .ax-sum, .ax-now { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
-  .ax-now { color: var(--fg); }
-  .ax-hint { margin: 0; font-size: 12px; color: var(--muted); font-style: italic; }
-  .ax-node.goal .ax-card { border-color: var(--g); }
-  .ax-node.cur .ax-card { border-color: var(--g); background: var(--soft); }
-  /* the farther the stage, the fainter and rougher: it gets clear as it gets close */
-  .ax-node[data-far="1"] .ax-card { opacity: .88; }
-  .ax-node[data-far="2"] .ax-card { opacity: .72; border-style: dashed; }
-  .ax-node[data-far="3"] .ax-card { opacity: .56; border-style: dashed; }
-  .ax-node.past .ax-card { opacity: .7; }
-  .st-h { display: flex; flex-direction: column; gap: 1px; }
-  .st-tasks { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-  .st-tasks li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+  .fg-strip { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .fg-l { min-width: 0; display: flex; flex-direction: column; }
+  .fg-l b { font: 700 15px/1.3 var(--f-head); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fg-l small, .fu-row small { font-size: 12px; color: var(--muted); }
+  .fg-pct { flex: none; font: 700 13px/1 var(--f-mono); color: hsl(var(--gh, var(--h)) 58% 40%); }
+  :root[data-theme="dark"] .fg-pct { color: hsl(var(--gh, var(--h)) 70% 70%); }
+  .fu-stage { border-left: 3px solid hsl(var(--gh, var(--h)) 58% 48%); padding: 2px 0 2px 12px; }
+  .fs-h { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
+  .fs-h b { font-size: 15px; }
+  .fs-h small { font-size: 12px; color: var(--muted); }
+  .fs-note { margin: 6px 0; font-size: 13px; color: var(--muted); }
+  .st-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .st-tasks li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
   .st-tasks li.done .t { text-decoration: line-through; color: var(--muted); }
-  .st-tasks input { margin: 3px 0 0; flex: none; accent-color: var(--g); }
+  .st-tasks input { margin: 4px 0 0; flex: none; accent-color: hsl(var(--gh, var(--h)) 58% 46%); }
   .st-tasks .t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
-  .st-pushed { flex: none; font-style: normal; font-size: 11px; color: var(--g); }
-  .st-put { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .st-pushed { flex: none; font-style: normal; font-size: 11px; color: var(--muted); }
+  .st-put { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
   .st-put .fu-face { flex: 1 1 auto; min-width: 0; width: auto; padding: 6px 8px; font-size: 13px; height: 36px; }
-  .fu-passed { margin-top: 14px; font-size: 13px; }
-  .fu-passed summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
   .fu-miss { margin: 12px 0 0; font-size: 13px; color: var(--over); }
-  .fu-goal .fu-btns { margin-top: 16px; }
+  .fu-more { margin-top: 14px; font-size: 13px; }
+  .fu-more summary { cursor: pointer; color: var(--muted); }
+  .fu-more .fu-btns { margin-top: 10px; }
+
+  .fu-list { display: flex; flex-direction: column; gap: 8px; }
+  .fu-row { appearance: none; text-align: left; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-left: 3px solid hsl(var(--gh, var(--h)) 58% 48%); border-radius: 10px; padding: 9px 12px; background: var(--panel); color: var(--fg); font: 14px/1.4 var(--f-body); cursor: pointer; }
+  .fu-row:hover { border-color: hsl(var(--gh, var(--h)) 58% 48%); }
+  .fu-row .r-top { display: flex; justify-content: space-between; gap: 10px; }
+  .fu-row .r-pct { flex: none; font: 600 12px/1.6 var(--f-mono); color: var(--muted); }
+  .fu-row .r-now { font-size: 13px; }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .fu-scene { --sky1: hsl(var(--gh, var(--h)) 35% 9%); --horizon: hsl(var(--gh, var(--h)) 45% 26%); --glow: hsl(var(--gh, var(--h)) 75% 42%);
+      --floor1: hsl(var(--gh, var(--h)) 22% 17%); --floor2: hsl(var(--gh, var(--h)) 18% 11%); --road: hsl(var(--gh, var(--h)) 25% 25%); --fog: hsl(var(--gh, var(--h)) 30% 17%);
+      --shadow-c: hsl(0 0% 0%); --edge: hsl(var(--gh, var(--h)) 60% 70%); --g: hsl(var(--gh, var(--h)) 65% 66%); }
+    :root:not([data-theme="light"]) .fu-scene .die .dim { fill: hsl(var(--gh, var(--h)) 22% 30%); }
+    :root:not([data-theme="light"]) .fu-scene .die .lit { fill: hsl(var(--gh, var(--h)) 75% 66%); }
+    :root:not([data-theme="light"]) .fu-scene .band polygon { stroke: hsl(var(--gh, var(--h)) 55% 70% / .3); }
+        :root:not([data-theme="light"]) .fg-pct { color: hsl(var(--gh, var(--h)) 70% 70%); }
+  }
+  :root[data-theme="dark"] .fu-scene { --sky1: hsl(var(--gh, var(--h)) 35% 9%); --horizon: hsl(var(--gh, var(--h)) 45% 26%); --glow: hsl(var(--gh, var(--h)) 75% 42%);
+    --floor1: hsl(var(--gh, var(--h)) 22% 17%); --floor2: hsl(var(--gh, var(--h)) 18% 11%); --road: hsl(var(--gh, var(--h)) 25% 25%); --fog: hsl(var(--gh, var(--h)) 30% 17%);
+    --shadow-c: hsl(0 0% 0%); --edge: hsl(var(--gh, var(--h)) 60% 70%); --g: hsl(var(--gh, var(--h)) 65% 66%); }
+  :root[data-theme="dark"] .fu-scene .die .dim { fill: hsl(var(--gh, var(--h)) 22% 30%); }
+  :root[data-theme="dark"] .fu-scene .die .lit { fill: hsl(var(--gh, var(--h)) 75% 66%); }
+  :root[data-theme="dark"] .fu-scene .band polygon { stroke: hsl(var(--gh, var(--h)) 55% 70% / .3); }

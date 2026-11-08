@@ -626,5 +626,17 @@ I18N.add('pt-BR', {
   "fu.missed": "{n} tarefas anteriores não foram concluídas. Dá para replanejar o que falta conforme o tempo restante.",
   "fu.redo": " O que já foi feito até agora: {done}. Planeje apenas o que falta.",
   "fu.sys": "Você é um planejador cuidadoso de estudos e carreira. Transforma metas em caminhos realistas e nunca promete resultados. Entregue o resultado direto, sem explicações.",
-  "fu.prompt": "Hoje é {today}. Alguém quer alcançar esta meta em {date} (daqui a {days} dias): {goal}\nOnde está agora: {level}\nTempo que pode dedicar: cerca de {hours} horas por semana.{redo}\n\nPrimeiro confira o escopo. Só dá para planejar metas de estudo, habilidades e carreira. Se a meta for sobre a vida em si (casamento, família, relacionamentos, saúde, sorte, destino…), responda apenas {\"ok\":false,\"reason\":\"uma frase gentil, com menos de 25 palavras, dizendo que é melhor deixar isso sem planejar\"}.\n\nCaso contrário, trace o caminho até a meta seguindo as etapas abaixo (índice | duração | datas), em ordem. Para cada etapa escreva um rótulo (menos de 10 palavras) dizendo o que deve estar pronto no fim dela. Etapas de semana: 2 ou 3 tarefas concretas, cada uma com menos de 14 palavras e possível dentro das horas semanais. Etapas de mês: 1 ou 2 marcos como tarefas. Etapas de trimestre e semestre: sem tarefas, lista vazia. Seja concreto perto de hoje e propositalmente amplo mais adiante, porque o futuro é incerto. Escreva em português do Brasil. Responda só com JSON, nada mais, neste formato: {\"ok\":true,\"summary\":\"o caminho todo em menos de 25 palavras\",\"stages\":[{\"i\":0,\"label\":\"...\",\"tasks\":[\"...\"]}]}\n\nEtapas:\n{stages}"
+  "fu.prompt": "Hoje é {today}. Alguém quer alcançar esta meta em {date} (daqui a {days} dias): {goal}\nOnde está agora: {level}\nTempo que pode dedicar: cerca de {hours} horas por semana.{redo}\n\nPrimeiro confira o escopo. Só dá para planejar metas de estudo, habilidades e carreira. Se a meta for sobre a vida em si (casamento, família, relacionamentos, saúde, sorte, destino…), responda apenas {\"ok\":false,\"reason\":\"uma frase gentil, com menos de 25 palavras, dizendo que é melhor deixar isso sem planejar\"}.\n\nCaso contrário, trace o caminho até a meta seguindo as etapas abaixo (índice | duração | datas), em ordem. Para cada etapa escreva um rótulo (menos de 10 palavras) dizendo o que deve estar pronto no fim dela. Etapas de semana: 2 ou 3 tarefas concretas, cada uma com menos de 14 palavras e possível dentro das horas semanais. Etapas de mês: 1 ou 2 marcos como tarefas. Etapas de trimestre e semestre: sem tarefas, lista vazia. Seja concreto perto de hoje e propositalmente amplo mais adiante, porque o futuro é incerto. Escreva em português do Brasil. Responda só com JSON, nada mais, neste formato: {\"ok\":true,\"summary\":\"o caminho todo em menos de 25 palavras\",\"stages\":[{\"i\":0,\"label\":\"...\",\"tasks\":[\"...\"]}]}\n\nEtapas:\n{stages}",
+  "fu.m.w1": "1 sem",
+  "fu.m.m1": "1 mês",
+  "fu.m.m3": "3 meses",
+  "fu.m.m6": "6 meses",
+  "fu.m.y1": "1 ano",
+  "fu.m.y2": "2 anos",
+  "fu.ghost": "Para onde?",
+  "fu.manage": "Mais",
+  "fu.noTasks": "Ainda não há tarefas. Elas aparecem quando esta etapa chegar perto.",
+  "fu.sceneAria": "Um caminho de você, embaixo, até a meta lá longe. Quanto mais longe, mais alto e mais nebuloso.",
+  "fu.stageAria": "{label}, {range}",
+  "fu.here": "Você está aqui"
 });
