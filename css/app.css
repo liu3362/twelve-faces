@@ -147,6 +147,17 @@
   .die-label span.off { opacity: 0; }
   .nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; color: var(--muted); padding: 24px; }
 
+  /* the little universe in the corner: your whole life as a ball of jelly cells; tap to open it (see js/orb.js, universe.html) */
+  .orb { position: absolute; left: 0; top: 0; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-decoration: none; color: var(--muted); outline: none; -webkit-tap-highlight-color: transparent; }
+  .orb canvas { width: 72px; height: 72px; display: block; opacity: 0; transform: scale(.6); transform-origin: 30% 30%; filter: drop-shadow(0 8px 9px hsl(228 50% 20% / .28)); transition: opacity .9s, transform .9s cubic-bezier(.2, 1.3, .4, 1); }
+  .orb.on canvas { opacity: 1; transform: none; }
+  .orb.on:hover canvas, .orb.on:focus-visible canvas { transform: scale(1.1); transition-duration: .35s; }
+  .orb span { padding-left: 4px; font: 500 11px/1.2 var(--f-mono); letter-spacing: .02em; transition: color .2s; }
+  .orb:hover span, .orb:focus-visible span { color: var(--accent); }
+  .orb:focus-visible span { text-decoration: underline; text-underline-offset: 3px; }
+  @media (max-width: 899px) { .orb canvas { width: 58px; height: 58px; } }
+  @media (prefers-reduced-motion: reduce) { .orb canvas { transition: opacity .3s; transform: none; } .orb.on:hover canvas { transform: none; } }
+
   .work { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px; scrollbar-width: thin; }
   .work.enter { animation: rise .34s ease both; }
   @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -369,6 +380,9 @@
   @keyframes fu-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
   .fu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 6px; flex: none; }
   .fu-head h2 { margin: 0; font: 700 18px/1.25 var(--f-sans); }
+  .fu-hb { display: flex; gap: 6px; flex: none; }
+  .fu-uni { text-decoration: none; }
+  .fu-uni::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #cfd8ff, #5a6fe0 55%, #1b2260); box-shadow: 0 0 0 1.5px hsl(228 50% 30% / .35); vertical-align: -.5px; }
   .fu-head p { margin: 2px 0 0; font-size: 13px; color: var(--accent); }
   .fu-tabs { display: flex; gap: 6px; padding: 4px 16px 10px; overflow-x: auto; flex: none; }
   .fu-chip { flex: none; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; appearance: none; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 999px; padding: 6px 12px; font: 600 13px/1.2 var(--f-body); cursor: pointer; }
@@ -393,18 +407,20 @@
   .fu-scene .goal-t { fill: var(--fg); font: 700 14px var(--f-head); pointer-events: none; paint-order: stroke; stroke: var(--sky1); stroke-width: 3px; stroke-opacity: .5; }
   .fu-scene .goal-t.sm { font-size: 12px; stroke: var(--horizon); stroke-opacity: .8; }
   .fu-scene .dt { paint-order: stroke; stroke: var(--horizon); stroke-width: 3px; stroke-opacity: .7; }
-  .fu-scene .halo { pointer-events: none; }
+  .fu-scene .halo, .fu-scene .ping, .fu-scene .pt, .fu-scene .mark, .fu-scene .mk, .fu-scene .dt, .fu-scene .lead, .fu-scene .ray, .fu-scene .edge, .fu-scene .dashes, .fu-scene .pip { pointer-events: none; }
   .fu-scene .pt { fill: var(--g); stroke: var(--pop); stroke-width: 2; }
   .fu-scene .ping { fill: none; stroke: var(--g); stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: fu-ping 2.4s ease-out infinite; }
   @keyframes fu-ping { from { transform: scale(1); opacity: .8; } to { transform: scale(3.2); opacity: 0; } }
 
   .fu-scene .band { cursor: pointer; outline: none; }
-  .fu-scene .band polygon { fill: hsl(var(--gh, var(--h)) 60% 52% / .16); stroke: hsl(var(--gh, var(--h)) 55% 40% / .25); stroke-width: .8; transition: fill .2s; }
-  .fu-scene .band.odd polygon { fill: hsl(var(--gh, var(--h)) 60% 52% / .28); }
-  .fu-scene .band.cur polygon { fill: hsl(var(--gh, var(--h)) 65% 50% / .38); }
-  .fu-scene .band.full polygon { fill: hsl(var(--gh, var(--h)) 65% 46% / .62); }
-  .fu-scene .band:hover polygon { fill: hsl(var(--gh, var(--h)) 65% 50% / .5); }
+  .fu-scene .band polygon { fill: hsl(var(--bh, var(--gh, var(--h))) 60% 52% / .16); stroke: hsl(var(--bh, var(--gh, var(--h))) 55% 40% / .25); stroke-width: .8; transition: fill .2s; }
+  .fu-scene .band.odd polygon { fill: hsl(var(--bh, var(--gh, var(--h))) 60% 52% / .28); }
+  .fu-scene .band.cur polygon { fill: hsl(var(--bh, var(--gh, var(--h))) 65% 50% / .38); }
+  .fu-scene .band.full polygon { fill: hsl(var(--bh, var(--gh, var(--h))) 65% 46% / .62); }
+  .fu-scene .band:hover polygon { fill: hsl(var(--bh, var(--gh, var(--h))) 65% 50% / .5); }
+  .fu-scene .band polygon.bfill { fill: hsl(var(--bh, var(--gh, var(--h))) 85% 58% / .5); stroke: none; pointer-events: none; }
   .fu-scene .band.sel polygon, .fu-scene .band:focus-visible polygon { stroke: var(--g); stroke-width: 2.2; }
+  .fu-scene .band.sel polygon.bfill { stroke: none; }
   .fu-scene .band.full .lbl.in { fill: var(--pop); }
   .fu-scene .pip { fill: none; stroke: var(--g); stroke-width: 1.4; }
   .fu-scene .pip.on { fill: var(--g); }
@@ -447,7 +463,15 @@
   .fg-l small, .fu-row small { font-size: 12px; color: var(--muted); }
   .fg-pct { flex: none; font: 700 13px/1 var(--f-mono); color: hsl(var(--gh, var(--h)) 58% 40%); }
   :root[data-theme="dark"] .fg-pct { color: hsl(var(--gh, var(--h)) 70% 70%); }
-  .fu-stage { border-left: 3px solid hsl(var(--gh, var(--h)) 58% 48%); padding: 2px 0 2px 12px; }
+  .fu-stage { padding: 0; }
+  .fu-link { display: block; width: 3px; height: 14px; margin: 0 auto; border-radius: 3px; background: linear-gradient(180deg, hsl(var(--gh, var(--h)) 55% 60% / .75), hsl(var(--gh, var(--h)) 55% 60% / .35)); }
+  .fs-studied { margin: 9px 2px 2px; font: 500 12.5px/1.4 var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .fu-count { margin-top: 8px; }
+  .cd.sm { min-height: 58px; padding-block: 7px; }
+  .cd.sm .cd-num { font-size: 31px; }
+  .cd.sm .cd-t b { font-size: 14.5px; }
+  .cd.sm .cd-ic { width: 30px; height: 30px; }
+  .cd.sm .cd-coin { width: 22px; height: 22px; margin: -11px 0 0 -11px; }
   .fs-h { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
   .fs-h b { font-size: 15px; }
   .fs-h small { font-size: 12px; color: var(--muted); }
@@ -487,3 +511,13 @@
   :root[data-theme="dark"] .fu-scene .die .dim { fill: hsl(var(--gh, var(--h)) 22% 30%); }
   :root[data-theme="dark"] .fu-scene .die .lit { fill: hsl(var(--gh, var(--h)) 75% 66%); }
   :root[data-theme="dark"] .fu-scene .band polygon { stroke: hsl(var(--gh, var(--h)) 55% 70% / .3); }
+
+  /* Going to the universe page and coming back: the little orb grows into the whole sky, and the sky shrinks back into the orb (cross-page view transitions;
+     browsers that can't do them just change page). The same names are on the sky in universe.css. */
+  @view-transition { navigation: auto; }
+  .orb canvas { view-transition-name: uni-ball; }
+  ::view-transition-group(uni-ball) { overflow: clip; animation-name: -ua-view-transition-group-anim-uni-ball, uni-round-in; animation-duration: .8s; animation-timing-function: cubic-bezier(.45, .05, .2, 1); }
+  ::view-transition-old(uni-ball), ::view-transition-new(uni-ball) { height: 100%; object-fit: cover; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .6s; }
+  @keyframes uni-round-in { from { border-radius: 0; } 25% { border-radius: 0; } to { border-radius: 50%; } }
+  @media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }

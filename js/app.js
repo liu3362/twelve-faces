@@ -264,7 +264,18 @@
     dayLog.items.push({ k: kind, s: key || '', m: mins });
     if (dayLog.items.length > 200) dayLog.items.shift();
     try { localStorage.setItem('ds-log', JSON.stringify(dayLog)); } catch (e) {}
+    if (kind !== 'rest' && key) histAdd(key, mins);
     renderTimeline();
+  }
+  /* every day's focus minutes per face, kept for about three years: the goals and the universe read it to see how far you have walked */
+  function histAdd(key, mins) {
+    try {
+      var h = JSON.parse(localStorage.getItem('tf-hist') || '{}') || {}, d = today();
+      h[d] = h[d] || {}; h[d][key] = Math.round(((h[d][key] || 0) + mins) * 10) / 10;
+      var ks = Object.keys(h).sort(); while (ks.length > 1100) delete h[ks.shift()];
+      localStorage.setItem('tf-hist', JSON.stringify(h));
+      document.dispatchEvent(new Event('tf-goals'));     // the little universe in the corner follows your study time
+    } catch (e) {}
   }
   /* a face may belong to another die on the shelf: look it up there so its colour and name still show */
   var faceMemo = {};

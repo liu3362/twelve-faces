@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#060818">
+<title data-i18n="un.title">Your universe</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- Web fonts are optional: if they can’t load (e.g. Google is blocked), system fonts are used and the page doesn’t stall -->
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/countdown.css">
+<link rel="stylesheet" href="css/universe.css">
+</head>
+<body class="un">
+<canvas id="unCanvas" role="img" data-i18n-aria-label="un.aria"></canvas>
+
+<header class="un-top">
+  <a class="un-back" href="index.html" data-i18n="un.back"></a>
+  <div class="un-ttl"><h1 data-i18n="un.title"></h1><p data-i18n="un.slogan"></p></div>
+  <div class="un-tools">
+    <button class="un-btn main" id="unAdd" type="button"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span data-i18n="un.add"></span></button>
+    <button class="un-btn" id="unEx" type="button" aria-pressed="false" data-i18n="un.example" hidden></button>
+    <button class="un-btn icon" id="unReplay" type="button" data-i18n-aria-label="un.replay" data-i18n-title="un.replay"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M4 2.5l9 5.5-9 5.500z" fill="currentColor"/></svg></button>
+    <button class="un-btn icon" id="unSave" type="button" data-i18n-aria-label="un.save" data-i18n-title="un.save"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M8 2v8M4.500 7L8 10.500 11.500 7M3 13.500h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></button>
+  </div>
+</header>
+
+<div class="un-banner" id="unBanner" hidden></div>
+
+<aside class="un-panel" id="unPanel">
+  <div class="un-pbody" id="unBody"></div>
+</aside>
+<button class="un-grab" id="unGrab" type="button" aria-expanded="false" aria-controls="unBody"><span data-i18n="un.details"></span></button>
+
+<footer class="un-time">
+  <div class="un-tl"><span class="un-end past" data-i18n="un.past"></span><span class="un-when" id="unWhen" aria-live="polite"></span><span class="un-end fut" data-i18n="un.future"></span></div>
+  <div class="un-track">
+    <input type="range" id="unFocus" min="-1000" max="1000" step="1" value="0" data-i18n-aria-label="un.slider">
+    <button class="un-now" id="unNow" type="button" data-i18n="un.today"></button>
+  </div>
+</footer>
+
+<div class="un-skip" id="unSkip" hidden data-i18n="un.skip"></div>
+<div class="un-tip" id="unTip" hidden></div>
+<ul class="un-sr" id="unList"></ul>
+
+<dialog class="un-dlg" id="unForm">
+  <form id="unFormEl" method="dialog" novalidate>
+    <h2 id="unFormTitle"></h2>
+    <div class="un-kinds" role="radiogroup" data-i18n-aria-label="un.f.kind">
+      <label><input type="radio" name="unKind" value="study" checked><span data-i18n="un.kind.study"></span></label>
+      <label><input type="radio" name="unKind" value="life"><span data-i18n="un.kind.life"></span></label>
+      <label><input type="radio" name="unKind" value="goal"><span data-i18n="un.kind.goal"></span></label>
+    </div>
+    <div class="un-goalhint" id="unGoalHint" hidden>
+      <p data-i18n="un.goalHint"></p>
+      <a class="un-btn main" href="index.html#future/new" data-i18n="un.goalBtn"></a>
+    </div>
+    <div id="unFields">
+      <label class="un-f"><span data-i18n="un.f.title"></span><input type="text" id="unFName" maxlength="60" autocomplete="off"></label>
+      <div class="un-f2">
+        <label class="un-f"><span data-i18n="un.f.from"></span><input type="date" id="unFFrom"></label>
+        <label class="un-f"><span data-i18n="un.f.to"></span><input type="date" id="unFTo"></label>
+      </div>
+      <p class="un-small" data-i18n="un.f.toHint"></p>
+      <div class="un-f"><span data-i18n="un.f.color"></span><div class="un-sw" id="unFHue" role="radiogroup"></div></div>
+      <label class="un-f"><span data-i18n="un.f.note"></span><textarea id="unFNote" rows="2" maxlength="200"></textarea></label>
+    </div>
+    <p class="un-err" id="unFErr" role="alert"></p>
+    <div class="un-fb">
+      <button type="button" class="un-btn" id="unFCancel" data-i18n="un.f.cancel"></button>
+      <button type="submit" class="un-btn main" id="unFSave" data-i18n="un.f.save"></button>
+    </div>
+  </form>
+</dialog>
+
+<script src="js/i18n.js"></script>
+<script src="locales/en.js"></script>
+<script src="locales/es.js"></script>
+<script src="locales/pt-BR.js"></script>
+<script src="locales/fr.js"></script>
+<script src="locales/zh.js"></script>
+<script src="locales/zh-TW.js"></script>
+<script src="locales/ja.js"></script>
+<script src="locales/ko.js"></script>
+<script src="js/goalmath.js"></script>
+<script src="js/dodeca.js"></script>
+<script src="js/countdown.js"></script>
+<script src="js/universe.js"></script>
+<script src="js/universe-data.js"></script>
+<script src="js/universe-page.js"></script>
+</body>
+</html>

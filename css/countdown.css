@@ -1,0 +1,42 @@
+/* Countdown cards: big colour blocks, a coin in the middle, a big "N days to go" on the right. Shared by the future road and the universe page. */
+.cd { --ch: 215; position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; box-sizing: border-box; min-height: 68px;
+  border-radius: 999px; padding: 9px 20px 9px 16px; color: #fff; isolation: isolate; overflow: hidden;
+  background: linear-gradient(112deg, hsl(var(--ch) 64% 60%) 0%, hsl(var(--ch) 72% 40%) 100%);
+  box-shadow: 0 8px 18px hsl(var(--ch) 60% 18% / .3), inset 0 0 0 1.5px hsl(0 0% 100% / .38), inset 0 2px 0 hsl(0 0% 100% / .28); }
+/* a soft sheen across the top, and a bar along the bottom that fills with the minutes studied (--cf) */
+.cd::before { content: ""; position: absolute; inset: 0 0 50% 0; z-index: -1; background: linear-gradient(180deg, hsl(0 0% 100% / .22), hsl(0 0% 100% / 0)); }
+.cd::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: 5px; height: 3px; border-radius: 3px; z-index: -1;
+  background: linear-gradient(90deg, hsl(48 100% 78%) var(--cf, 0%), hsl(0 0% 100% / .2) var(--cf, 0%)); opacity: .9; }
+.cd.cur { box-shadow: 0 0 0 3px hsl(var(--ch) 85% 75% / .55), 0 10px 22px hsl(var(--ch) 60% 18% / .38), inset 0 0 0 1.5px hsl(0 0% 100% / .5), inset 0 2px 0 hsl(0 0% 100% / .3); }
+.cd.past { filter: saturate(.45) brightness(.82); }
+.cd-l { display: flex; align-items: center; gap: 10px; min-width: 0; padding-right: 20px; }
+.cd-ic { flex: none; display: grid; place-items: center; width: 34px; height: 34px; opacity: .96; }
+.cd-t { min-width: 0; }
+.cd-t b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font: 700 16px/1.2 var(--f-head); overflow-wrap: anywhere; text-shadow: 0 1px 2px hsl(var(--ch) 70% 20% / .4); }
+.cd-t small { display: block; margin-top: 2px; font-size: 11.5px; opacity: .88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cd-coin { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff7cf, #e9bd4f 58%, #b98a22); box-shadow: 0 0 0 2px hsl(0 0% 100% / .55), 0 2px 6px rgb(0 0 0 / .32); }
+.cd-coin::after { content: ""; position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; transform: rotate(45deg); background: hsl(var(--ch) 60% 22%); border-radius: 1.5px; }
+.cd-r { display: flex; flex-direction: column; align-items: flex-start; padding-left: 22px; min-width: 0; }
+.cd-row { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.cd-row, .cd-big { transform: scale(var(--cs, 1)); transform-origin: 0 50%; white-space: nowrap; }   /* shrunk by countdown.js when the card is too narrow for the words */
+.cd.nar .cd-ic { display: none; }
+.cd.nar .cd-l { gap: 0; }
+.cd-pre, .cd-unit { font: 600 14px/1 var(--f-body); opacity: .95; }
+.cd-num { font: 800 40px/1 var(--f-head); letter-spacing: -.01em; text-shadow: 0 2px 4px hsl(var(--ch) 70% 20% / .35); font-variant-numeric: tabular-nums; }
+.cd-big { font: 800 28px/1.1 var(--f-head); }
+.cd-date { margin-top: 3px; font-size: 12px; opacity: .92; white-space: nowrap; }
+
+.cd-ladder { position: relative; display: flex; flex-direction: column; gap: 16px; padding: 6px 0; }
+.cd-ladder::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: linear-gradient(180deg, hsl(0 0% 100% / .25), hsl(0 0% 100% / .5), hsl(0 0% 100% / .25)); }
+.cd-item { position: relative; }
+.cd-item::before { content: ""; position: absolute; left: 50%; top: -12px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; z-index: 1;
+  background: hsl(var(--ch) 70% 45%); box-shadow: 0 0 0 2.5px hsl(0 0% 100% / .75); }
+.cd-item:first-child::before { top: -4px; }
+
+@media (max-width: 380px) {
+  .cd { padding-inline: 12px 14px; }
+  .cd-num { font-size: 34px; }
+  .cd-t b { font-size: 14.5px; }
+}
+@media (prefers-reduced-motion: no-preference) { .cd { transition: transform .2s; } }

@@ -32,7 +32,7 @@
     return { goals: [], sel: 'all' };
   }
   var st = load();
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} try { document.dispatchEvent(new Event('tf-goals')); } catch (e) {} }
 
   /* ---------- dates ---------- */
   function iso(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
@@ -67,8 +67,22 @@
 
   /* ---------- progress ---------- */
   function done(g) { return g.stages.reduce(function (a, s) { return a + s.tasks.filter(function (x) { return x.done; }).length; }, 0) + (g.doneBefore || 0); }
-  function total(g) { return g.stages.reduce(function (a, s) { return a + s.tasks.length; }, 0) + (g.doneBefore || 0); }
-  function pct(g) { var n = total(g); return n ? Math.round(done(g) / n * 100) : 0; }
+  /* How far along is a goal? Each stage has a time budget (hours a week x its length). A stage is filled by the minutes you
+   * studied on the goal's subject (tf-hist, written by the timer) or by its ticked tasks, whichever is further along.
+   * The goal's progress is the filled share of all the planned time. */
+  var histMemo = null;
+  function hist() { if (!histMemo) histMemo = GoalMath.hist(); return histMemo; }
+  function studied(g, s) { return GoalMath.studied(g, s, hist()); }
+  function budget(g, s) { return GoalMath.budget(g, s); }
+  function fillOf(g, s) { return GoalMath.fillOf(g, s, hist()); }
+  function progress(g) { return GoalMath.progress(g, hist()); }
+  function pct(g) { return Math.round(progress(g) * 100); }
+  function fmtMin(m) {
+    m = Math.round(m);
+    if (m < 60) return t('dur', { n: m, u: t('unit.min') });
+    var h = Math.floor(m / 60), r = m % 60;
+    return t('dur', { n: h, u: t('unit.hour') }) + (r ? ' ' + t('dur', { n: r, u: t('unit.min') }) : '');
+  }
   function curIndex(g) {
     var td = iso(startOfToday());
     for (var i = 0; i < g.stages.length; i++) if (g.stages[i].to >= td) return i;
@@ -116,7 +130,8 @@
     if (!title || !d) { setMsg(t('fu.f.need'), true); return; }
     if (d <= startOfToday()) { setMsg(t('fu.f.past'), true); return; }
     var g = { id: uid(), title: title.slice(0, 80), date: draft.date, level: draft.level.trim().slice(0, 200),
-      hours: Math.max(1, Math.min(60, parseInt(draft.hours, 10) || 5)), hue: HUES[st.goals.length % HUES.length], created: iso(startOfToday()), stages: [], doneBefore: 0 };
+      hours: Math.max(1, Math.min(60, parseInt(draft.hours, 10) || 5)), hue: HUES[st.goals.length % HUES.length], created: iso(startOfToday()), stages: [], doneBefore: 0,
+      face: window.TFApp ? TFApp.cur() : '' };
     var sl = slices(g.date);
     working = true; setMsg(t('fu.working')); render(false);
     ask(g, sl, null).then(function (raw) {
@@ -135,7 +150,15 @@
     working = true; setMsg(t('fu.working')); render(false);
     ask(g, sl, texts).then(function (raw) {
       if (raw && raw.ok === false) { working = false; ctl = null; setMsg(String(raw.reason || '').slice(0, 200) || t('fu.notScope'), true); render(false); return; }
-      g.doneBefore = done(g); apply(g, sl, raw); delete picked[g.id];
+      g.doneBefore = done(g);
+      var td = iso(startOfToday()), cm = g.credit ? g.credit.m : 0, cb = g.credit ? g.credit.b : 0;
+      g.stages.forEach(function (s0) {                     // what the old plan had already earned, so progress is not thrown away
+        if (s0.from > td) return;
+        var b0 = budget(g, s0), len = nDays(parse(s0.from), parse(s0.to)) + 1, el0 = Math.min(1, (nDays(parse(s0.from), startOfToday()) + 1) / len), f0 = fillOf(g, s0) * b0;
+        cm += f0; cb += Math.max(f0, b0 * el0);
+      });
+      g.credit = { m: cm, b: cb };
+      apply(g, sl, raw); delete picked[g.id];
       working = false; ctl = null; setMsg(''); save(); render(true);
     }, fail);
   }
@@ -270,11 +293,16 @@
       up.forEach(function (s, k) {
         var i = ci + k, dA = Math.max(0, daysTo(s.from)), dB = daysTo(s.to) + 1;
         var ya = yOf(dA) - 0.8, yb = yOf(dB) + 0.8, h = ya - yb; if (h < 1.2) return;
-        var sm = sOf((ya + yb) / 2), full = s.tasks.length && s.tasks.every(function (x) { return x.done; });
+        var sm = sOf((ya + yb) / 2), fl = fillOf(g, s), full = fl >= 0.999;
         var grp = sv('g', { class: 'band' + (i === ci ? ' cur' : '') + (i === sel ? ' sel' : '') + (full ? ' full' : '') + (i % 2 ? ' odd' : ''), tabindex: 0, role: 'button',
           'aria-label': t('fu.stageAria', { label: s.label, range: range(s) }), 'aria-pressed': i === sel ? 'true' : 'false' }, svg);
+        grp.style.setProperty('--bh', Countdown.journeyHue(g.hue, i, g.stages.length));
         grp.style.setProperty('--n', String(count - 1 - k)); grp.style.setProperty('--dy', (-(sOf(ya)) * span * 0.6).toFixed(0) + 'px');
         sv('polygon', { points: (cx - half(ya)) + ',' + ya + ' ' + (cx + half(ya)) + ',' + ya + ' ' + (cx + half(yb)) + ',' + yb + ' ' + (cx - half(yb)) + ',' + yb }, grp);
+        if (fl > 0.01 && !full) {                          // the part of this stage already walked, filled from the near edge
+          var yf = ya - h * fl;
+          sv('polygon', { class: 'bfill', style: 'stroke:none;pointer-events:none', points: (cx - half(ya)) + ',' + ya + ' ' + (cx + half(ya)) + ',' + ya + ' ' + (cx + half(yf)) + ',' + yf + ' ' + (cx - half(yf)) + ',' + yf }, grp);
+        }
         var pick = function () { picked[g.id] = i; render(false); };
         grp.addEventListener('click', pick);
         grp.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
@@ -441,10 +469,10 @@
 
   function stageSheet(g, i) {
     var s = g.stages[i], ci = curIndex(g), box = el('div', 'fu-stage');
-    var head = el('div', 'fs-h');
-    head.appendChild(el('b', '', s.label));
-    head.appendChild(el('small', '', range(s) + ' · ' + t('fu.kind.' + s.kind) + (i === ci ? ' · ' + t('fu.here') : '')));
-    box.appendChild(head);
+    box.appendChild(Countdown.pill({ icon: s.kind, label: s.label, sub: t('fu.kind.' + s.kind), days: daysTo(s.to),
+      date: range(s), hue: Countdown.journeyHue(g.hue, i, g.stages.length), state: (i === ci ? 'cur ' : i < ci ? 'past ' : '') + 'sm', fill: fillOf(g, s) }));
+    var bud = budget(g, s);
+    box.appendChild(el('p', 'fs-studied', t('fu.studied', { a: fmtMin(studied(g, s)), b: fmtMin(bud) })));
     if (s.tasks.length) {
       var ul = el('ul', 'st-tasks');
       s.tasks.forEach(function (x) {
@@ -476,16 +504,16 @@
 
   function goalSheet(g) {
     var box = el('div', 'fu-goal'); box.style.setProperty('--gh', g.hue);
-    var strip = el('div', 'fg-strip');
-    var l = el('div', 'fg-l'); l.appendChild(el('b', '', g.title)); l.appendChild(el('small', '', fmtD(g.date, true) + ' · ' + daysLeft(g)));
-    strip.appendChild(l); strip.appendChild(el('span', 'fg-pct', t('fu.progress', { p: pct(g) })));
-    box.appendChild(strip);
-    if (g.stages.length && curIndex(g) < g.stages.length) box.appendChild(stageSheet(g, shownIndex(g)));
+    if (!g.face && window.TFApp) { g.face = TFApp.cur(); save(); }
+    box.appendChild(Countdown.pill({ icon: 'goal', label: g.title, sub: t('fu.progress', { p: pct(g) }), days: daysTo(g.date), date: fmtD(g.date, true),
+      hue: Countdown.journeyHue(g.hue, 1, 1), state: 'goal', fill: progress(g) }));
+    if (g.stages.length && curIndex(g) < g.stages.length) { box.appendChild(el('i', 'fu-link')); box.appendChild(stageSheet(g, shownIndex(g))); }
     // earlier stages, the re-plan and delete buttons
     var ci = curIndex(g), passed = g.stages.slice(0, ci), missed = passed.reduce(function (a, s) { return a + s.tasks.filter(function (x) { return !x.done; }).length; }, 0);
     if (missed) box.appendChild(el('p', 'fu-miss', t('fu.missed', { n: missed })));
     var more = el('details', 'fu-more'); more.appendChild(el('summary', '', t('fu.manage')));
     if (g.summary) more.appendChild(el('p', 'fs-note', g.summary));
+    var cf = el('label', 'fu-field fu-count'); cf.appendChild(el('span', '', t('fu.countFrom'))); cf.appendChild(faceSelect(g)); more.appendChild(cf);
     if (passed.length) more.appendChild(el('p', 'fs-note', t('fu.passed', { n: passed.length })));
     var row = el('div', 'fu-btns');
     var rp = el('button', 'btn alt sm', t('fu.replan')); rp.type = 'button'; rp.disabled = working; rp.addEventListener('click', function () { replan(g); });
@@ -505,6 +533,7 @@
     if (st.sel !== 'all' && st.sel !== 'new' && !st.goals.some(function (g) { return g.id === st.sel; })) st.sel = st.goals.length > 1 ? 'all' : (st.goals[0] ? st.goals[0].id : 'new');
     if (st.goals.length === 1 && st.sel === 'all') st.sel = st.goals[0].id;
     if (!st.goals.length) st.sel = 'new';
+    histMemo = null;
     renderTabs();
     var md = mode();
     panel.dataset.mode = md;
@@ -533,4 +562,14 @@
   }
   document.addEventListener('visibilitychange', function () { if (document.hidden) stopLoop(); else startLoop(); });
   window.openFuture = open;
+  /* a link from the universe page: index.html#future/<goalId> opens that goal's road ("#future/new" opens the form) */
+  function fromHash() {
+    var m = /^#future(?:\/([\w-]+))?$/.exec(location.hash || '');
+    if (!m) return;
+    if (m[1] === 'new') st.sel = 'new'; else if (m[1] && st.goals.some(function (g) { return g.id === m[1]; })) st.sel = m[1];
+    open();
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  }
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
 })();

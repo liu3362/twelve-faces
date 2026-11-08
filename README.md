@@ -12,7 +12,8 @@ Flip the dodecahedron to step into a subject; flip the small die to start a focu
 - **Today**: set a daily goal per face. The timeline shows the day’s study and rest; time past the daily cap is drawn in a different colour.
 - **Ask AI**: each face has its own teaching style. The AI can also act for you: “add a to-do to review chapter 2, then start 25 minutes”.
 - **Deep thinking**: a toggle under the question box, on by default. It handles hard questions better but is slower and uses more tokens; turn it off for simple ones. Building dice and planning the day never use it.
-- **Beyond today (2.0 prototype)**: tap “Future” at the top and a road opens in perspective. You stand at the bottom; your goal (learning, a skill or your career) floats on the horizon as a slowly turning dodecahedron. The next weeks are big and sharp, a whole year out is squeezed toward the horizon, faint and broad, so “concrete near, vague far” is something you see, not read. Each stage is a band across the road; tap one to see its tasks, put this week’s into Today’s to-dos with one tap, and watch the goal’s twelve faces light up as you finish tasks. Keep several goals as dice of different sizes on the same road, and re-plan the rest when life moves. Goals about life itself (marriage, family, fate…) are politely declined: life stays unplanned. *See the future. Walk toward it.*
+- **Beyond today (2.0 prototype)**: tap “Future” at the top and a road opens in perspective. You stand at the bottom; your goal (learning, a skill or your career) floats on the horizon as a slowly turning dodecahedron. The next weeks are big and sharp, a whole year out is squeezed toward the horizon, faint and broad, so “concrete near, vague far” is something you see, not read. Each stage is a band across the road, and a colourful countdown card (“In 6 days”) sits under it; tap a band to see its tasks and put this week’s into Today’s to-dos with one tap. Progress is real: the minutes you study on a face (the timer keeps a daily log) and the tasks you tick fill the bands and light the goal’s twelve faces one by one. Keep several goals on the same road and re-plan the rest when life moves. Goals about life itself (marriage, family, fate…) are politely declined: life stays unplanned. *See the future. Walk toward it.*
+- **Your universe (prototype)**: a soft, jelly-like glass ball that *is you*, opened from the little orb in the corner of the study room (or `universe.html`). Every life stage, every self-study and every goal is a cell holding its own dodecahedron. With a few cells they float apart and stay round; as more arrive they press against each other and take the shapes of cells that touch, and the ball itself breathes and wobbles. Time is the visible dimension: the past is warm and worn, the present glossy, the future a dashed ghost, and a slider at the bottom moves through your whole life. Goals you plan on the road appear on their own, with their dice lit by real progress; add the rest by hand. The first visit opens with a sun and its planets that pull back and condense into the ball. Nothing leaves your browser, and it needs no WebGL. Without any data of yours it shows an example universe so you can see what it becomes.
 - **Several AIs with automatic fallback**: add keys from a few providers; the first one is used first, and when it runs out of quota or fails, the next one takes over.
 
 No sign-up and no server. Everything (to-dos, notes, timer history, keys) stays in your own browser.
@@ -84,6 +85,16 @@ js/ai.js          one interface to many AI providers, with automatic fallback
 js/settings.js    settings: language, shelf, feedback, AI keys, backups
 js/maker.js       new dice (AI builds them by major and year, or by job)
 js/future.js      Beyond today: goals and the perspective road to the future
+js/goalmath.js    progress shared by the road, the cards and the universe (minutes studied + tasks done)
+js/countdown.js   the colourful “N days to go” cards
+css/countdown.css styles of those cards
+universe.html     your universe: the page
+css/universe.css  its styles (always dark, like the night sky)
+js/universe.js    the engine: jelly cells in a soft ball, drawn on a 2D canvas (soap-foam walls, spring physics, the opening animation)
+js/dodeca.js      a dodecahedron drawn on a canvas, used for every cell
+js/universe-data.js  what goes into the universe: goals from the road, cells you add, or the example
+js/universe-page.js  the page: slider, panel, add / edit / delete, countdown ladder
+js/orb.js         the little universe in the corner of the study room (loads after the page is ready)
 vendor/three.min.js  three.js r128 (MIT licence, see vendor/three.LICENSE)
 ```
 

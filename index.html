@@ -9,6 +9,7 @@
 <!-- Web fonts are optional: if they can’t load (e.g. Google is blocked), system fonts are used and the page doesn’t stall -->
 <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=DM+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;700&display=swap">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/countdown.css">
 </head>
 <body>
 <div class="atmos" id="atmos" aria-hidden="true"></div>
@@ -31,6 +32,7 @@
     <div class="shadow"></div>
     <div class="die-label"><b id="dlName"></b><span id="dlHint" data-i18n="die.hint"></span></div>
     <div class="nogl" id="nogl"></div>
+    <a class="orb" id="orb" href="universe.html" data-i18n-aria-label="un.title" data-i18n-title="un.slogan"><canvas id="orbCv" aria-hidden="true"></canvas><span data-i18n="un.title"></span></a>
   </section>
 
   <main class="work" id="work">
@@ -123,7 +125,7 @@
 <aside id="future" class="future" hidden data-i18n-aria-label="fu.aria">
   <div class="fu-head">
     <div><h2 data-i18n="fu.title"></h2><p data-i18n="fu.slogan"></p></div>
-    <button class="gear" id="fuClose" type="button" data-i18n="fu.close"></button>
+    <div class="fu-hb"><a class="gear fu-uni" href="universe.html" data-i18n="fu.toUni" data-i18n-title="un.slogan"></a><button class="gear" id="fuClose" type="button" data-i18n="fu.close"></button></div>
   </div>
   <div class="fu-tabs" id="fuTabs"></div>
   <div class="fu-scene" id="fuScene"></div>
@@ -222,6 +224,9 @@
 <script src="js/app.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/maker.js"></script>
+<script src="js/goalmath.js"></script>
+<script src="js/countdown.js"></script>
 <script src="js/future.js"></script>
+<script src="js/orb.js"></script>
 </body>
 </html>
