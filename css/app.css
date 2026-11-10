@@ -396,13 +396,19 @@
     --fog: hsl(var(--gh, var(--h)) 40% 95%); --shadow-c: hsl(var(--gh, var(--h)) 45% 22%); --edge: hsl(var(--gh, var(--h)) 50% 38%);
     flex: 1 1 0; min-height: 230px; position: relative; overflow: hidden; border-block: 1px solid var(--line); }
   .fu-scene svg { display: block; width: 100%; height: 100%; }
+  [data-mode="goal"] .fu-scene { touch-action: none; user-select: none; -webkit-user-select: none; overscroll-behavior: contain; cursor: grab; }
+  [data-mode="goal"] .fu-scene.drag { cursor: grabbing; }
+  .fu-scene:focus { outline: none; } .fu-scene:focus-visible { outline: 2px solid var(--g); outline-offset: -3px; }
   .fu-scene .ray { stroke: hsl(var(--gh, var(--h)) 40% 40% / .12); stroke-width: 1; }
   .fu-scene .edge { stroke: var(--edge); stroke-opacity: .5; stroke-width: 1.2; }
   .fu-scene .dashes line { stroke: hsl(var(--gh, var(--h)) 50% 40% / .38); stroke-linecap: round; }
   .fu-scene .mark { stroke: hsl(var(--gh, var(--h)) 40% 35% / .22); stroke-dasharray: 2 5; }
   .fu-scene .mk, .fu-scene .dt, .fu-scene .here-t { fill: var(--muted); font-family: var(--f-body); }
   .fu-scene .here-t { fill: var(--g); font-weight: 700; }
-  .fu-scene .lbl { fill: var(--fg); font-family: var(--f-body); font-weight: 600; pointer-events: none; }
+  .fu-scene .lbl { fill: var(--fg); font-family: var(--f-body); font-weight: 600; cursor: pointer; }
+  .fu-scene .lbl.tk { font-weight: 500; fill: var(--muted); }
+  .fu-scene .lbl.ct { font-weight: 500; font-size: 10px; fill: var(--muted); }
+  .fu-scene .lbl-hit { fill: transparent; cursor: pointer; }
   .fu-scene .lead { stroke: var(--muted); stroke-opacity: .5; stroke-width: 1; }
   .fu-scene .goal-t { fill: var(--fg); font: 700 14px var(--f-head); pointer-events: none; paint-order: stroke; stroke: var(--sky1); stroke-width: 3px; stroke-opacity: .5; }
   .fu-scene .goal-t.sm { font-size: 12px; stroke: var(--horizon); stroke-opacity: .8; }
@@ -431,6 +437,22 @@
   .fu-scene .die .hit { fill: transparent; stroke: none; }
   .fu-scene .die[role="button"] { cursor: pointer; outline: none; }
   .fu-scene .die[role="button"]:focus-visible .hit { stroke: var(--edge); stroke-width: 2; stroke-dasharray: 3 4; }
+
+  /* walking the road: stages behind you are grey, today is a line when you have walked back, and two small controls sit in the corners */
+  .fu-scene .band.past polygon { fill: hsl(220 8% 55% / .16); stroke: hsl(220 8% 45% / .25); }
+  .fu-scene .band.past .lbl { opacity: .75; }
+  .fu-scene .pbar { fill: hsl(var(--gh, var(--h)) 40% 45% / .22); pointer-events: none; }
+  .fu-scene .pbar.on { fill: var(--g); }
+  .fu-scene .band.full .pbar { fill: hsl(0 0% 100% / .35); } .fu-scene .band.full .pbar.on { fill: var(--pop); }
+  .fu-scene .pt.cam { fill: var(--muted); }
+  .fu-scene .today { stroke: var(--g); stroke-width: 1.5; stroke-dasharray: 5 4; pointer-events: none; }
+  .fu-scene .fu-cam, .fu-scene .fu-faces { position: absolute; z-index: 2; appearance: none; border: 1px solid var(--line); background: var(--pop); color: var(--fg); border-radius: 999px; padding: 5px 11px; font: 600 12px/1.2 var(--f-body); cursor: pointer; box-shadow: 0 1px 5px var(--shadow); }
+  .fu-scene .fu-cam { left: 10px; top: 30px; }
+  .fu-scene .fu-cam[hidden] { display: none; }
+  .fu-scene .fu-cam.hint { top: auto; bottom: 8px; border-color: transparent; background: transparent; color: var(--muted); box-shadow: none; font-weight: 500; pointer-events: none; }
+  .fu-scene .fu-faces { right: 10px; top: 30px; font-weight: 500; font-size: 11.5px; padding: 4px 10px; }
+  .fu-scene .fu-faces[aria-pressed="true"] { border-color: var(--g); background: var(--soft); font-weight: 600; }
+  .fu-scene .fu-cam:focus-visible, .fu-scene .fu-faces:focus-visible { outline: 2px solid var(--g); outline-offset: 2px; }
 
   /* once, on opening or switching: the stages rise out of the horizon toward you, the goal fades in first */
   .fu-scene.intro .band { transform-box: fill-box; transform-origin: 50% 0; animation: fu-rise .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--n, 0) * 55ms + 150ms); }
@@ -474,7 +496,8 @@
   .st-tasks li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
   .st-tasks li.done .t { text-decoration: line-through; color: var(--muted); }
   .st-tasks input { margin: 4px 0 0; flex: none; accent-color: hsl(var(--gh, var(--h)) 58% 46%); }
-  .st-tasks .t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .st-tasks .t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; appearance: none; border: 0; background: none; padding: 0; margin: 0; text-align: left; font: inherit; color: inherit; cursor: text; }
+  .st-tasks .t:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
   .st-pushed { flex: none; font-style: normal; font-size: 11px; color: var(--muted); }
   .st-put { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
   .st-put .fu-face { flex: 1 1 auto; min-width: 0; width: auto; padding: 6px 8px; font-size: 13px; height: 36px; }
@@ -482,6 +505,22 @@
   .fu-more { margin-top: 14px; font-size: 13px; }
   .fu-more summary { cursor: pointer; color: var(--muted); }
   .fu-more .fu-btns { margin-top: 10px; }
+
+  .st-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .st-tasks li.edit { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .st-in, .st-add input { box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--panel); color: var(--fg); font: 14px/1.4 var(--f-body); }
+  .st-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .st-done { font-size: 13px; }
+  .st-done summary { cursor: pointer; color: var(--muted); }
+  .st-done .st-tasks { margin-top: 6px; }
+  .st-add { display: flex; gap: 8px; position: sticky; bottom: calc(-18px - env(safe-area-inset-bottom, 0px)); z-index: 1; padding: 8px 0 10px; background: linear-gradient(to top, var(--pop) 78%, transparent); }   /* pinned flush with the bottom of the sheet (its padding is 18px) */
+  .st-add .btn { flex: none; }
+  .st-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .st-edit { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .st-edit .fu-msg { margin: 0; min-height: 0; }
+  .st-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fu-editgoal { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+  .fu-editgoal .btn { align-self: flex-start; }
 
   .fu-list { display: flex; flex-direction: column; gap: 8px; }
   .fu-row { appearance: none; text-align: left; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-left: 3px solid hsl(var(--gh, var(--h)) 58% 48%); border-radius: 10px; padding: 9px 12px; background: var(--panel); color: var(--fg); font: 14px/1.4 var(--f-body); cursor: pointer; }

@@ -13,7 +13,9 @@
  *   dwell 0..1   the turn lingers on the symmetric poses and sweeps through the awkward ones in between (0 = even speed)
  *   gloss 0..1   soft shading on every patch, a rim and a glint (default 1 when round > 0, else 0)
  *   mode         'stars' draws the twelve faces as twelve stars joined into a constellation instead
- * Dodeca.styleOf(id) deals a look to each die: every look turns up before any repeats, in a new order each time the page opens (add ?dice=C to the address to force one). */
+ *   labels       up to 12 short texts printed on the faces (see "words on the faces" below); font = font family; labelOut = {} receives .front and .hits (Dodeca.hit(labelOut, x, y) says which text is under a point)
+ * Dodeca.styleOf(id) deals a look to each die, evenly (a new die gets the look used least so far) and keeps it in this browser (tf-looks), so a die looks the same
+ * on the road, in the universe and in the corner orb. Add ?dice=C to the address to force one look, ?dice=new to deal everything again. */
 (function (global) {
   'use strict';
   var PHI = (1 + Math.sqrt(5)) / 2, SQ3 = Math.sqrt(3), TAU = Math.PI * 2, DV = [], DF = [];
@@ -256,13 +258,26 @@
     E: { zh: '十二星', en: 'Twelve stars', p: { mode: 'stars', axis: 'face', tilt: 0.5, dwell: 0.4 } },
     F: { zh: '圆角顶点', en: 'Rounded corners', p: { axis: 'face', tilt: 0.5, blunt: 0.26, dwell: 0.5, gloss: 0.2 }, crys: true }
   };
-  var KEYS = ['A', 'B', 'C', 'D', 'E', 'F'], bag = [], got = {}, forced = null;
-  try { var mm = /[?&]dice=([A-Za-z])(?![A-Za-z])/.exec(global.location.search); if (mm && STYLES[mm[1].toUpperCase()]) forced = mm[1].toUpperCase(); } catch (e) {}
-  function styleOf(id) {                                     // one look for each die; all six turn up before any repeats, in a new order every time the page opens
+  var KEYS = ['A', 'B', 'C', 'D', 'E', 'F'], LKEY = 'tf-looks', got = null, forced = null;
+  try {
+    var mm = /[?&]dice=([A-Za-z])(?![A-Za-z])/.exec(global.location.search); if (mm && STYLES[mm[1].toUpperCase()]) forced = mm[1].toUpperCase();
+    if (/[?&]dice=new\b/i.test(global.location.search)) global.localStorage.removeItem(LKEY);          // ?dice=new deals every die again
+  } catch (e) {}
+  function saved() {                                         // die id -> look, kept in this browser: a die looks the same on every page and every visit
+    if (got) return got;
+    got = {};
+    try { var v = JSON.parse(global.localStorage.getItem(LKEY) || '{}'); for (var k in v) if (STYLES[v[k]]) got[k] = v[k]; } catch (e) {}
+    return got;
+  }
+  function styleOf(id) {                                     // a new die gets the look used least so far (ties at random), so all six stay evenly mixed
     if (forced) return forced;
-    if (got[id]) return got[id];
-    if (!bag.length) { bag = KEYS.slice(); for (var i = bag.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = bag[i]; bag[i] = bag[j]; bag[j] = t; } }
-    return (got[id] = bag.pop());
+    var s = saved(); if (s[id]) return s[id];
+    var n = {}, k, best = [], low = 1e9;
+    KEYS.forEach(function (q) { n[q] = 0; }); for (k in s) n[s[k]]++;
+    KEYS.forEach(function (q) { if (n[q] < low) { low = n[q]; best = [q]; } else if (n[q] === low) best.push(q); });
+    s[id] = best[Math.floor(Math.random() * best.length)];
+    try { global.localStorage.setItem(LKEY, JSON.stringify(s)); } catch (e) {}
+    return s[id];
   }
   function look(key, hl) {                                   // the options of a look; pointing at the die (hl 0..1) sharpens the soft ones into crystals
     var s = STYLES[key] || STYLES.A, p = {}, k; for (k in s.p) p[k] = s.p[k];
@@ -281,9 +296,14 @@
   /* ---------- the die ---------- */
   function paint(ctx, o) {
     if (o.style) o = withStyle(o);
-    var r = o.r; if (!(r > 1)) return;
-    if (o.mode === 'stars') return paintStars(ctx, o);
-    if (o.blunt > 0.005 && !(o.round > 0)) return paintBlunt(ctx, o);
+    if (!(o.r > 1)) return;
+    if (o.mode === 'stars') paintStars(ctx, o);
+    else if (o.blunt > 0.005 && !(o.round > 0)) paintBlunt(ctx, o);
+    else paintMain(ctx, o);
+    if (o.labels && o.labels.length) paintLabels(ctx, o);
+  }
+  function paintMain(ctx, o) {
+    var r = o.r;
     var m = o.round > 0 ? Math.min(1, o.round) : 0, axis = FOLD[o.axis] ? o.axis : 'edge', gloss = o.gloss == null ? (m > 0 ? 1 : 0) : o.gloss;
     var N = m > 0.01 ? (r < 9 ? 2 : r < 24 ? 3 : 4) : 1, sh = shapeFor(axis, m < 0.01 ? 0 : m, N), rank = RANK[axis];
     var a = spinMap(o.spin || 0, axis, o.dwell || 0), ca = Math.cos(a), sa = Math.sin(a), tilt = o.tilt == null ? 0.4 : o.tilt, cx = Math.cos(tilt), sx = Math.sin(tilt), k = r / 1.5;
@@ -455,5 +475,99 @@
     }
     ctx.restore();
   }
-  global.Dodeca = { paint: paint, vertices: DV, faces: DF, orientations: ORI, styles: STYLES, styleKeys: KEYS, styleOf: styleOf, look: look, reshuffle: function () { got = {}; bag = []; }, forced: function () { return forced; } };
+  /* ---------- words on the faces ----------
+   * o.labels is up to 12 short texts. The nearest go on the faces that come round most often (the sides first, the top and bottom last). Each text is printed flat on its face, so it turns
+   * and squashes with the face, and stays upright while the die spins. o.font is the font family. o.labelOut (an object, optional) gets .front = the index of the text that faces us most, and .hits, which Dodeca.hit(labelOut, x, y) reads to tell which text a tap landed on. */
+  var LORD = {}, WRAP = {}, TOK = /[⺀-鿿豈-﫿＀-￯]|[^\s⺀-鿿豈-﫿＀-￯]+|\s+/g;
+  function labelOrder(axis) {
+    if (LORD[axis]) return LORD[axis];
+    var M = ORI[axis], all = DF.map(function (f, i) { var n = mapply(M, f.n); return { i: i, pole: Math.abs(n[1]) > 0.8, az: Math.atan2(n[0], n[2]) }; });
+    var side = all.filter(function (q) { return !q.pole; }).sort(function (p, q) { return p.az - q.az; });
+    return (LORD[axis] = side.concat(all.filter(function (q) { return q.pole; })).map(function (q) { return q.i; }));
+  }
+  function wrap(ctx, str, maxW, maxLines) {                // break a text into lines: at spaces, anywhere between CJK characters, inside a word only when the word is wider than the line
+    var key = maxLines + '|' + maxW + '|' + ctx.font + '|' + str, hit = WRAP[key]; if (hit) return hit;
+    var tk = String(str).match(TOK) || [], lines = [], cur = '';
+    tk.forEach(function (w) {
+      if (/^\s+$/.test(w)) { if (cur) cur += ' '; return; }
+      while (w.length > 1 && ctx.measureText(w).width > maxW) {
+        var n = w.length; while (n > 1 && ctx.measureText(w.slice(0, n)).width > maxW) n--;
+        if (cur) { lines.push(cur.replace(/\s+$/, '')); cur = ''; }
+        lines.push(w.slice(0, n)); w = w.slice(n);
+      }
+      var s = cur + w;
+      if (cur && ctx.measureText(s).width > maxW) { lines.push(cur.replace(/\s+$/, '')); cur = w; } else cur = s;
+    });
+    if (cur) lines.push(cur.replace(/\s+$/, ''));
+    if (lines.length > maxLines) {
+      lines = lines.slice(0, maxLines);
+      var last = lines[maxLines - 1] + '…';
+      while (last.length > 1 && ctx.measureText(last).width > maxW) last = last.slice(0, -2) + '…';
+      lines[maxLines - 1] = last;
+    }
+    if (Object.keys(WRAP).length > 400) WRAP = {};
+    return (WRAP[key] = lines);
+  }
+  function paintLabels(ctx, o) {
+    var texts = o.labels, stars = o.mode === 'stars', blunt = !stars && o.blunt > 0.005 && !(o.round > 0);
+    var axis = FOLD[o.axis] ? o.axis : (stars || blunt ? 'face' : 'edge'), M = ORI[axis], m = stars || blunt || !(o.round > 0) ? 0 : Math.min(1, o.round);
+    var rad = stars ? SQ3 * 0.98 : INR + m * (SQ3 - INR), a = spinMap(o.spin || 0, axis, o.dwell || 0), ca = Math.cos(a), sa = Math.sin(a);
+    var tilt = o.tilt == null ? 0.4 : o.tilt, cx = Math.cos(tilt), sx = Math.sin(tilt), k = o.r / 1.5, font = o.font || 'system-ui, sans-serif';
+    var ord = labelOrder(axis), ghost = o.ghost || 0, al = (o.alpha == null ? 1 : o.alpha) * (1 - ghost), best = -1, bz = 0.3, q, hits = o.labelOut ? [] : null;
+    ctx.save();
+    for (q = 0; q < texts.length && q < 12; q++) {
+      var fi = ord[q], txt = texts[q]; if (!txt) continue;
+      var n = mapply(M, DF[fi].n), x1 = n[0] * ca + n[2] * sa, y1 = n[1], z1 = -n[0] * sa + n[2] * ca;      // the face's normal after the turn
+      var nz = y1 * sx + z1 * cx;                                                                              // how much it faces us after the lean
+      if (nz > bz) { bz = nz; best = q; }
+      if (nz < 0.14) continue;
+      var f = Math.min(1, (nz - 0.14) / 0.36), on = Math.max(0, Math.min(1, (o.lit || 0) - RANK[axis][fi])) * (1 - ghost);
+      f = f * f * (3 - 2 * f);
+      ctx.globalAlpha = al * f;
+      if (o.light || (on > 0.5 && !stars)) { ctx.fillStyle = 'rgba(10,18,48,0.93)'; ctx.shadowBlur = 0; }                  // dark words on a pale page, and on a face that is lit up
+      else { ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.shadowColor = 'rgba(0,0,30,0.55)'; ctx.shadowBlur = 3; }
+      if (stars) {                                                                                             // a star map: the name sits beside its star
+        var R0 = SQ3 * k * 0.98, px = o.x + R0 * x1, py = o.y - R0 * (y1 * cx - z1 * sx), fs = Math.max(9, o.r * 0.17), right = x1 >= 0;
+        ctx.font = '600 ' + fs + 'px ' + font; ctx.textAlign = right ? 'left' : 'right'; ctx.textBaseline = 'middle';
+        var st1 = wrap(ctx, txt, o.r * 0.95, 1)[0] || '';
+        ctx.fillText(st1, px + (right ? 7 : -7), py);
+        if (hits) { var tw = ctx.measureText(st1).width + 14; hits.push({ q: q, nz: nz, box: [right ? px - 8 : px - tw, py - fs * 0.9, right ? px + tw : px + 8, py + fs * 0.9] }); }
+        continue;
+      }
+      if (hits) {                                                                                              // where this face is on the screen, for taps
+        hits.push({ q: q, nz: nz, poly: DF[fi].idx.map(function (vi) { var v = mapply(M, DV[vi]), vz = -v[0] * sa + v[2] * ca; return [o.x + k * (v[0] * ca + v[2] * sa), o.y - k * (v[1] * cx - vz * sx)]; }) });
+      }
+      var ux = -y1 * x1, uy = 1 - y1 * y1, uz = -y1 * z1, ul = Math.sqrt(ux * ux + uy * uy + uz * uz);     // "up" on the face: the vertical, flattened onto it
+      if (ul < 0.3) {                                                                                          // the top or bottom face has no vertical: keep its words upright on the screen instead
+        var dp = cx * y1 - sx * z1;                                                                            // screen-up (0, cos, -sin) in this frame, flattened onto the face
+        ux = -dp * x1; uy = cx - dp * y1; uz = -sx - dp * z1; ul = Math.sqrt(ux * ux + uy * uy + uz * uz) || 1;
+      }
+      ux /= ul; uy /= ul; uz /= ul;
+      var rx = uy * z1 - uz * y1, ry = uz * x1 - ux * z1, rz = ux * y1 - uy * x1;                              // right = up x normal
+      ctx.save();
+      ctx.transform(k * rx / 100, -k * (ry * cx - rz * sx) / 100, -k * ux / 100, k * (uy * cx - uz * sx) / 100, o.x + k * rad * x1, o.y - k * rad * (y1 * cx - z1 * sx));
+      ctx.font = '600 24px ' + font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var lines = wrap(ctx, txt, 135, 3), y0 = -(lines.length - 1) * 14, li;
+      for (li = 0; li < lines.length; li++) ctx.fillText(lines[li], 0, y0 + li * 28);
+      ctx.restore();
+    }
+    ctx.restore();
+    if (o.labelOut) { o.labelOut.front = best; o.labelOut.hits = hits; }
+  }
+  /* which printed text lies under a point? out is the labelOut that paint filled in; x and y are in the canvas's own units. Gives the text's index, or -1 when nothing is there. */
+  function inPoly(poly, x, y) {
+    var c = false, i, j;
+    for (i = 0, j = poly.length - 1; i < poly.length; j = i++) if ((poly[i][1] > y) !== (poly[j][1] > y) && x < (poly[j][0] - poly[i][0]) * (y - poly[i][1]) / (poly[j][1] - poly[i][1]) + poly[i][0]) c = !c;
+    return c;
+  }
+  function hitLabel(out, x, y) {
+    var h = out && out.hits, best = -1, bz = -1, i, c, inside;
+    if (!h) return -1;
+    for (i = 0; i < h.length; i++) {
+      c = h[i]; inside = c.box ? (x >= c.box[0] && x <= c.box[2] && y >= c.box[1] && y <= c.box[3]) : inPoly(c.poly, x, y);
+      if (inside && c.nz > bz) { bz = c.nz; best = c.q; }
+    }
+    return best;
+  }
+  global.Dodeca = { paint: paint, hit: hitLabel, vertices: DV, faces: DF, orientations: ORI, styles: STYLES, styleKeys: KEYS, styleOf: styleOf, look: look, reshuffle: function () { got = {}; try { global.localStorage.removeItem(LKEY); } catch (e) {} }, forced: function () { return forced; } };
 })(window);
