@@ -697,6 +697,7 @@ I18N.add('en', {
   "un.behind": "Behind you",
   "un.comingNone": "Nothing ahead yet. Add a goal or a stage to look forward to.",
   "un.hint": "Slide right to look ahead. Tap a cell or a card to open it.",
+  "un.dieLook": "Die look: {s}",
   "un.all": "All",
   "un.close": "Close",
   "un.progress": "{p}% done",

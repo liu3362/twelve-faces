@@ -5,7 +5,7 @@
   'use strict';
   var link = document.getElementById('orb'), cv = document.getElementById('orbCv');
   if (!link || !cv || !cv.getContext) return;
-  var ball = null, SRC = ['js/dodeca.js', 'js/universe.js', 'js/universe-data.js'], timer = 0;
+  var ball = null, SRC = ['js/universe.js', 'js/universe-data.js'], timer = 0;
 
   function add(i, done) {
     if (i >= SRC.length) return done();

@@ -139,6 +139,8 @@
       if (c.summary) f.appendChild(el('p', 'un-note', c.summary));
     }
     if (c.note) f.appendChild(el('p', 'un-note', c.note));
+    var lk = Dodeca.styleOf(c.id), lkName = Dodeca.styles[lk][/^zh/i.test(t('lang.html')) ? 'zh' : 'en'];
+    f.appendChild(el('p', 'un-meta un-look', t('un.dieLook', { s: lk + ' · ' + lkName })));   // (for choosing a look: says which of the six this die has)
     var acts = el('div', 'un-acts');
     if (c.kind === 'goal' && c.goalId) { var a = el('a', 'un-btn main', t('un.openRoad')); a.href = 'index.html#future/' + encodeURIComponent(c.goalId); acts.appendChild(a); }
     else if (!c.sample) {

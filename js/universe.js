@@ -72,7 +72,7 @@
     /* ---------- the cells ---------- */
     function spawn(d, instant) {
       var h1 = hashStr(d.id), h2 = hashStr(d.id + 'x'), h3 = hashStr(d.id + 'y');
-      var c = { id: d.id, d: d, x: 0, y: 0, vx: 0, vy: 0, r0: 0, rt: 0, r: 0, s: 0, sv: 0, dying: false,
+      var c = { id: d.id, d: d, style: Dodeca.styleOf(d.id), x: 0, y: 0, vx: 0, vy: 0, r0: 0, rt: 0, r: 0, s: 0, sv: 0, dying: false,
         rho: new Float32Array(MP), rv: new Float32Array(MP), tgt: new Float32Array(MP), tmp: new Float32Array(MP), pts: new Float32Array(MP * 2),
         qx: 0, qy: 0, minR: 0, pres: 1, past: 0, fut: 0, hl: 0, lit: 0, ghostA: 0,
         spin: h1 * TAU, spinV: (0.32 + 0.3 * h2) * (h3 < 0.5 ? 1 : -1), yoff: h3 * 2 - 1, wob: h2 * TAU, born: T, px: 0, py: 0 };
@@ -312,7 +312,7 @@
       // the die
       var dieR = clamp(c.minR * 0.62, 0, c.rt * 0.8), bob = reduced ? 0 : Math.sin(T * 1.1 + c.wob) * dieR * 0.05;
       if (dieR > (mini ? 2.2 : 6)) {
-        Dodeca.paint(ctx, { x: ccx, y: ccy + bob - (mini ? 0 : rr * 0.02), r: dieR, spin: c.spin, lit: c.lit * 12, ghost: fu * 0.85, hue: hh, sat: Math.round(blend(86, 34, 70, pr, pa, fu)), lum: Math.round(blend(62, 54, 70, pr, pa, fu)),
+        Dodeca.paint(ctx, { x: ccx, y: ccy + bob - (mini ? 0 : rr * 0.02), r: dieR, spin: c.spin, style: c.style, hl: Math.min(1, hl * 1.4), lit: c.lit * 12, ghost: fu * 0.85, hue: hh, sat: Math.round(blend(86, 34, 70, pr, pa, fu)), lum: Math.round(blend(62, 54, 70, pr, pa, fu)),
           alpha: blend(1, 0.86, 0.8, pr, pa, fu), glow: pr * (0.4 + 0.6 * c.lit) * (mini ? 0.6 : 1) });
       } else if (mini || dieR > 1) {
         ctx.fillStyle = 'hsla(' + hh + ',90%,82%,' + (0.9 - 0.5 * fu).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(ccx, ccy, Math.max(1.2, dieR * 0.6), 0, TAU); ctx.fill();
@@ -410,7 +410,7 @@
       targets.forEach(function (t) {
         if (pa <= 0.02) return;
         var hh = t.c.d.hue;
-        Dodeca.paint(ctx, { x: t.x, y: t.y, r: t.r, spin: t.c.spin * 2 + T * 0.8, lit: t.c.d.lit != null ? t.c.d.lit * 12 : 12 * clamp(-t.c.d.start / Math.max(1, t.c.d.end - t.c.d.start), 0, 1), hue: hh, sat: 80, lum: 62, alpha: pa, glow: 0.8 });
+        Dodeca.paint(ctx, { x: t.x, y: t.y, r: t.r, style: t.c.style, spin: t.c.spin * 2 + T * 0.8, lit: t.c.d.lit != null ? t.c.d.lit * 12 : 12 * clamp(-t.c.d.start / Math.max(1, t.c.d.end - t.c.d.start), 0, 1), hue: hh, sat: 80, lum: 62, alpha: pa, glow: 0.8 });
       });
       ctx.restore();
     }

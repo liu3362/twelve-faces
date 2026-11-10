@@ -697,6 +697,7 @@ I18N.add('zh', {
   "un.behind": "已经过去",
   "un.comingNone": "前面还没有安排。添加一个目标或阶段，给自己一点期待。",
   "un.hint": "往右滑，看看前面的路。点一个细胞或卡片可以打开它。",
+  "un.dieLook": "十二面体的画法：{s}",
   "un.all": "全部",
   "un.close": "关闭",
   "un.progress": "完成 {p}%",

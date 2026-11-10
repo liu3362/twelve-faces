@@ -164,69 +164,35 @@
   }
 
   /* ================= the road ================= */
-  /* a dodecahedron: 20 vertices, 12 pentagon faces (found from the vertices, so there is no table to get wrong) */
-  var PHI = (1 + Math.sqrt(5)) / 2, DV = [], DF = [];
-  function vnorm(v) { var l = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); return [v[0] / l, v[1] / l, v[2] / l]; }
-  function vdot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
-  function vcross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
-  (function () {
-    var sg = [-1, 1], A = [], B = [];
-    sg.forEach(function (x) { sg.forEach(function (y) { sg.forEach(function (z) { DV.push([x, y, z]); }); }); });
-    sg.forEach(function (y) { sg.forEach(function (z) { DV.push([0, y / PHI, z * PHI]); DV.push([y / PHI, z * PHI, 0]); DV.push([y * PHI, 0, z / PHI]); }); });
-    sg.forEach(function (a) { sg.forEach(function (b) {
-      A.push([0, a, b * PHI], [a, b * PHI, 0], [a * PHI, 0, b]);
-      B.push([0, a * PHI, b], [a * PHI, b, 0], [a, 0, b * PHI]);
-    }); });
-    [A, B].forEach(function (set) {
-      if (DF.length === 12) return;
-      var out = [];
-      set.forEach(function (n) {
-        var d = DV.map(function (v, i) { return [vdot(v, n), i]; }).sort(function (p, q) { return q[0] - p[0]; });
-        if (Math.abs(d[0][0] - d[4][0]) < 1e-6 && d[4][0] - d[5][0] > 1e-3) out.push({ n: vnorm(n), idx: d.slice(0, 5).map(function (p) { return p[1]; }) });
-      });
-      if (out.length === 12) DF = out;
-    });
-    DF.forEach(function (f) {
-      var u = vcross(f.n, [0, 0, 1]); if (Math.abs(u[0]) + Math.abs(u[1]) + Math.abs(u[2]) < 1e-3) u = vcross(f.n, [0, 1, 0]);
-      u = vnorm(u); var w = vcross(f.n, u);
-      f.idx.sort(function (a, b) { return Math.atan2(vdot(DV[a], w), vdot(DV[a], u)) - Math.atan2(vdot(DV[b], w), vdot(DV[b], u)); });
-    });
-    // faces light up from the bottom of the die upward as the goal fills in
-    var ord = DF.slice().sort(function (a, b) { return a.n[1] - b.n[1]; });
-    DF.forEach(function (f) { f.rank = ord.indexOf(f); });
-  })();
-  var LIGHT = vnorm([-0.4, 0.7, 0.6]), TILT = 0.4;
-
-  var dice = [], raf = 0;
-  function makeDie(parent, o) {            // o: x, y(centre), r, lit (0..12), ghost, phase
-    var g = sv('g', { class: 'die' + (o.ghost ? ' ghost' : '') }, parent);
-    var polys = DF.map(function (f) { return sv('polygon', { class: f.rank < o.lit ? 'lit' : 'dim' }, g); });
-    var d = { g: g, polys: polys, o: o };
+  /* The goals are Dodeca dice (js/dodeca.js), painted on one canvas laid over the SVG. Each goal keeps an invisible round hit area in the SVG, which takes the clicks and the focus. */
+  var dice = [], raf = 0, dieCv = null, dieCtx = null, dpr = 1, sceneT0 = 0, sceneArrive = false, lastTm = 0;
+  var darkMq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  function isLight() { var th = document.documentElement.getAttribute('data-theme'); return th === 'light' || (th !== 'dark' && !(darkMq && darkMq.matches)); }
+  function roomHue() { var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--h')); return isNaN(v) ? 215 : v; }
+  function makeDie(parent, o) {            // o: x, y(centre), r, lit (0..12), ghost, phase, id, hue
+    var g = sv('g', { class: 'die' + (o.ghost ? ' ghost' : ''), 'data-lit': o.lit }, parent);
+    sv('circle', { class: 'hit', cx: o.x, cy: o.y, r: (o.r * 1.12).toFixed(1) }, g);
+    var d = { g: g, o: o, style: Dodeca.styleOf(o.id), hl: 0, hot: false };
     dice.push(d); return d;
   }
-  function spin(d, tm) {
-    var o = d.o, a = tm * 0.00032 + o.phase, ca = Math.cos(a), sa = Math.sin(a), cx = Math.cos(TILT), sx = Math.sin(TILT), k = o.r / 1.5;
-    var P = DV.map(function (v) {
-      var x1 = v[0] * ca + v[2] * sa, z1 = -v[0] * sa + v[2] * ca;
-      return [o.x + k * x1, o.y - k * (v[1] * cx - z1 * sx)];
+  function drawDice(tm, dt) {
+    if (!dieCtx) return;
+    var W = dieCv.width / dpr, H = dieCv.height / dpr, light = isLight(), k = 1 - Math.exp(-dt * 9), pulse = 1;
+    var arrive = sceneArrive ? Math.min(1, Math.max(0, (tm - sceneT0) / 900)) : 1;       // the goal fades in once, when the road opens
+    if (scene.classList.contains('working') && !reduced) { var ph = (tm % 2400) / 2400, tri = ph < 0.5 ? ph * 2 : 2 - ph * 2; pulse = 0.45 + 0.55 * tri * tri * (3 - 2 * tri); }   // and breathes while the AI is busy
+    dieCtx.setTransform(dpr, 0, 0, dpr, 0, 0); dieCtx.clearRect(0, 0, W, H);
+    dice.forEach(function (d) {
+      var o = d.o; d.hl += ((d.hot ? 1 : 0) - d.hl) * k;
+      Dodeca.paint(dieCtx, { x: o.x, y: o.y + (reduced ? 0 : Math.sin(tm / 760 + o.phase * 2) * 3), r: o.r, spin: tm * 0.00032 + o.phase, style: d.style, hl: d.hl, lit: o.lit, ghost: o.ghost ? 1 : 0,
+        hue: o.hue, sat: light ? 78 : 75, lum: light ? 62 : 66, light: light, alpha: arrive * (2 - arrive) * pulse });
     });
-    DF.forEach(function (f, i) {
-      var n = f.n, x1 = n[0] * ca + n[2] * sa, z1 = -n[0] * sa + n[2] * ca;
-      var ny = n[1] * cx - z1 * sx, nz = n[1] * sx + z1 * cx, p = d.polys[i];
-      if (nz < 0.02) { p.setAttribute('visibility', 'hidden'); return; }
-      p.setAttribute('visibility', 'visible');
-      p.setAttribute('points', f.idx.map(function (j) { return P[j][0].toFixed(1) + ',' + P[j][1].toFixed(1); }).join(' '));
-      var shade = Math.max(0, x1 * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]);
-      p.setAttribute('fill-opacity', (0.62 + 0.38 * shade).toFixed(2));
-    });
-    d.g.setAttribute('transform', 'translate(0,' + (reduced ? 0 : Math.sin(tm / 760 + o.phase * 2) * 3).toFixed(1) + ')');
   }
-  function loop(tm) { dice.forEach(function (d) { spin(d, tm); }); raf = requestAnimationFrame(loop); }
-  function stopLoop() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+  function loop(tm) { var dt = Math.min(0.05, (tm - (lastTm || tm)) / 1000); lastTm = tm; drawDice(tm, dt); raf = requestAnimationFrame(loop); }
+  function stopLoop() { if (raf) cancelAnimationFrame(raf); raf = 0; lastTm = 0; }
   function startLoop() {
     stopLoop();
     if (!dice.length || panel.hidden) return;
-    if (reduced) { dice.forEach(function (d) { spin(d, 0); }); return; }
+    if (reduced) { drawDice(0, 0); return; }
     raf = requestAnimationFrame(loop);
   }
 
@@ -351,27 +317,28 @@
 
     // the goals: floating dodecahedra
     var sorted = gs.slice().sort(function (a, b) { return daysTo(a.date) - daysTo(b.date); });
-    function goalDie(x, ground, r, lit, label, ghost, phase, onClick, side) {
+    function goalDie(x, ground, r, lit, label, ghost, phase, onClick, id, hue) {
       sv('ellipse', { cx: x, cy: ground, rx: r * 1.25, ry: r * 0.28, fill: 'url(#fuShadow)' }, svg);
       sv('circle', { cx: x, cy: ground - r * 1.05, r: r * 1.7, class: 'halo', opacity: ghost ? 0.25 : (0.35 + 0.65 * lit / 12).toFixed(2), fill: 'url(#fuGlow)' }, svg);
-      var d = makeDie(svg, { x: x, y: ground - r * 1.05, r: r, lit: lit, ghost: ghost, phase: phase });
-      if (intro) { d.g.classList.add('arrive'); }
+      var d = makeDie(svg, { x: x, y: ground - r * 1.05, r: r, lit: lit, ghost: ghost, phase: phase, id: id, hue: hue });
       if (onClick) {
         d.g.setAttribute('tabindex', 0); d.g.setAttribute('role', 'button'); d.g.setAttribute('aria-label', label);
         d.g.addEventListener('click', onClick);
+        ['pointerenter', 'focus'].forEach(function (ev) { d.g.addEventListener(ev, function () { d.hot = true; }); });
+        ['pointerleave', 'blur'].forEach(function (ev) { d.g.addEventListener(ev, function () { d.hot = false; }); });
         d.g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } });
       }
       return d;
     }
     if (md === 'goal') {
       var yG = yOf(daysTo(g.date)), rG = die.r;
-      goalDie(cx, yG, rG, Math.round(pct(g) / 100 * 12), g.title, false, 0.6);
+      goalDie(cx, yG, rG, Math.round(pct(g) / 100 * 12), g.title, false, 0.6, null, 'g:' + g.id, g.hue);
       var tt = sv('text', { x: cx, y: Math.max(14, yG - rG * 2.2 - 13), class: 'goal-t', 'text-anchor': 'middle', 'font-size': 14 }, svg);
       fit(tt, g.title, W - 28);
     } else if (md === 'all') {
       sorted.forEach(function (x, j) {
         var yG = yOf(daysTo(x.date)), r = 20 + 26 * sOf(yG), side = j % 2 ? 1 : -1, px = cx + side * half(yG) * 0.42;
-        goalDie(px, yG, r, Math.round(pct(x) / 100 * 12), x.title, false, j * 1.3, function () { st.sel = x.id; save(); render(true); });
+        goalDie(px, yG, r, Math.round(pct(x) / 100 * 12), x.title, false, j * 1.3, function () { st.sel = x.id; save(); render(true); }, 'g:' + x.id, x.hue);
         var room = side > 0 ? W - (px + r * 1.5) - 8 : px - r * 1.5 - 44;      // on the left, stay clear of the time marks
         if (room > 48) {
           var tx = sv('text', { x: side > 0 ? px + r * 1.5 : px - r * 1.5, y: yG - r - 2, class: 'goal-t sm', 'text-anchor': side > 0 ? 'start' : 'end', 'font-size': 12 }, svg);
@@ -385,7 +352,7 @@
       });
     } else {
       var yGh = yOf(dMax), rGh = Math.max(26, Math.min(44, (yGh - 30) / 2.3));
-      goalDie(cx, yGh, rGh, 0, '', true, 0.6);
+      goalDie(cx, yGh, rGh, 0, '', true, 0.6, null, 'ghost', roomHue());
       var gt = sv('text', { x: cx, y: Math.max(16, yGh - rGh * 2.2 - 13), class: 'goal-t', 'text-anchor': 'middle', 'font-size': 15 }, svg);
       gt.textContent = t('fu.ghost');
     }
@@ -396,6 +363,10 @@
     sv('circle', { cx: cx, cy: yNow, r: 5.5, class: 'pt' }, here);
     var ht = sv('text', { x: cx, y: yNow + 20, class: 'here-t', 'text-anchor': 'middle', 'font-size': 11.5 }, svg); ht.textContent = t('fu.now');
 
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    dieCv = document.createElement('canvas'); dieCv.className = 'fu-dice'; dieCv.width = Math.round(W * dpr); dieCv.height = Math.round(H * dpr); dieCv.setAttribute('aria-hidden', 'true');
+    scene.appendChild(dieCv); dieCtx = dieCv.getContext('2d');
+    sceneArrive = !!intro && !reduced; sceneT0 = window.performance.now();
     if (intro && !reduced) scene.classList.add('intro');
     startLoop();
   }

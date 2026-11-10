@@ -426,22 +426,16 @@
   .fu-scene .pip.on { fill: var(--g); }
   .fu-scene .band.full .pip { stroke: var(--pop); } .fu-scene .band.full .pip.on { fill: var(--pop); }
 
-  /* the dodecahedron: twelve faces, lit one by one as the goal fills in */
-  .fu-scene .die polygon { stroke: var(--edge); stroke-width: 1.4; stroke-linejoin: round; }
-  .fu-scene .die .lit { fill: hsl(var(--gh, var(--h)) 78% 62%); }
-  .fu-scene .die .dim { fill: hsl(var(--gh, var(--h)) 35% 96%); }
+  /* the dodecahedra are drawn on a canvas over the SVG (js/dodeca.js); the SVG keeps an invisible round hit area for the click and the focus ring */
+  .fu-scene .fu-dice { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .fu-scene .die .hit { fill: transparent; stroke: none; }
   .fu-scene .die[role="button"] { cursor: pointer; outline: none; }
-  .fu-scene .die[role="button"]:focus-visible polygon { stroke-width: 2.2; }
-  .fu-scene .die.ghost polygon { fill: none; stroke-dasharray: 3 4; stroke-opacity: .6; }
-  .fu-scene.working .die { animation: fu-pulse 1.2s ease-in-out infinite alternate; }
-  @keyframes fu-pulse { from { opacity: .45; } to { opacity: 1; } }
+  .fu-scene .die[role="button"]:focus-visible .hit { stroke: var(--edge); stroke-width: 2; stroke-dasharray: 3 4; }
 
   /* once, on opening or switching: the stages rise out of the horizon toward you, the goal fades in first */
   .fu-scene.intro .band { transform-box: fill-box; transform-origin: 50% 0; animation: fu-rise .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--n, 0) * 55ms + 150ms); }
   @keyframes fu-rise { from { opacity: 0; transform: translateY(var(--dy, -80px)) scale(.5, .2); } to { opacity: 1; transform: none; } }
-  .fu-scene.intro .die.arrive { animation: fu-arrive .9s ease-out both; }
-  @keyframes fu-arrive { from { opacity: 0; } to { opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .future, .fu-scene .ping, .fu-scene.working .die { animation: none; } .fu-scene.intro .band, .fu-scene.intro .die.arrive { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .future, .fu-scene .ping { animation: none; } .fu-scene.intro .band { animation: none; } }
 
   [data-mode="ghost"] .fu-scene { flex: 0 0 200px; min-height: 0; }
   .fu-sheet { flex: 0 1 auto; max-height: 46%; overflow-y: auto; padding: 12px 16px calc(18px + env(safe-area-inset-bottom, 0px)); }
@@ -500,16 +494,12 @@
     :root:not([data-theme="light"]) .fu-scene { --sky1: hsl(var(--gh, var(--h)) 35% 9%); --horizon: hsl(var(--gh, var(--h)) 45% 26%); --glow: hsl(var(--gh, var(--h)) 75% 42%);
       --floor1: hsl(var(--gh, var(--h)) 22% 17%); --floor2: hsl(var(--gh, var(--h)) 18% 11%); --road: hsl(var(--gh, var(--h)) 25% 25%); --fog: hsl(var(--gh, var(--h)) 30% 17%);
       --shadow-c: hsl(0 0% 0%); --edge: hsl(var(--gh, var(--h)) 60% 70%); --g: hsl(var(--gh, var(--h)) 65% 66%); }
-    :root:not([data-theme="light"]) .fu-scene .die .dim { fill: hsl(var(--gh, var(--h)) 22% 30%); }
-    :root:not([data-theme="light"]) .fu-scene .die .lit { fill: hsl(var(--gh, var(--h)) 75% 66%); }
     :root:not([data-theme="light"]) .fu-scene .band polygon { stroke: hsl(var(--gh, var(--h)) 55% 70% / .3); }
         :root:not([data-theme="light"]) .fg-pct { color: hsl(var(--gh, var(--h)) 70% 70%); }
   }
   :root[data-theme="dark"] .fu-scene { --sky1: hsl(var(--gh, var(--h)) 35% 9%); --horizon: hsl(var(--gh, var(--h)) 45% 26%); --glow: hsl(var(--gh, var(--h)) 75% 42%);
     --floor1: hsl(var(--gh, var(--h)) 22% 17%); --floor2: hsl(var(--gh, var(--h)) 18% 11%); --road: hsl(var(--gh, var(--h)) 25% 25%); --fog: hsl(var(--gh, var(--h)) 30% 17%);
     --shadow-c: hsl(0 0% 0%); --edge: hsl(var(--gh, var(--h)) 60% 70%); --g: hsl(var(--gh, var(--h)) 65% 66%); }
-  :root[data-theme="dark"] .fu-scene .die .dim { fill: hsl(var(--gh, var(--h)) 22% 30%); }
-  :root[data-theme="dark"] .fu-scene .die .lit { fill: hsl(var(--gh, var(--h)) 75% 66%); }
   :root[data-theme="dark"] .fu-scene .band polygon { stroke: hsl(var(--gh, var(--h)) 55% 70% / .3); }
 
   /* Going to the universe page and coming back: the little orb grows into the whole sky, and the sky shrinks back into the orb (cross-page view transitions;
