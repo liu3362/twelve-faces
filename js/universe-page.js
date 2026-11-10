@@ -6,7 +6,7 @@
   I18N.apply(document);
 
   var canvas = $('unCanvas'), panel = $('unPanel'), bodyEl = $('unBody'), tip = $('unTip');
-  var uni = null, data = { cells: [], mode: 'mine', mineCount: 0 }, selId = null, focus = 0, Lp = 60, Lf = 60, editing = null, introWatch = 0;
+  var uni = null, data = { cells: [], mode: 'mine', mineCount: 0 }, selId = null, focus = 0, Lp = 36, Lf = 60, editing = null, introWatch = 0, shown = '', backTo = null;
   var mobile = window.matchMedia('(max-width: 760px)');
   var today0 = GoalMath.startOfToday();
 
@@ -28,57 +28,101 @@
   }
   function kindName(c) { return t('un.kind.' + c.kind); }
 
-  /* ---------- the slider: the middle is today, the left is the past, the right the future; near today it is finer ---------- */
+  /* ---------- the slider: today sits near the left end and the future stretches away to the right.
+   * Only a short stretch of past hangs off the left (a few weeks); it grows by itself as your history grows. Near today one step is about a day, further away it is many. ---------- */
+  var inp = $('unFocus'), Pl = 70, Pf = 930, cvP = null, cvF = null;
   function extents() {
-    var lp = 60, lf = 60;
+    var lp = 35, lf = 60;
     data.cells.forEach(function (c) { lp = Math.max(lp, -c.start); lf = Math.max(lf, c.end); });
     Lp = lp * 1.04; Lf = lf * 1.04;
   }
-  function posToDays(p) { var a = Math.abs(p) / 1000, L = p < 0 ? Lp : Lf; return Math.round((p < 0 ? -1 : 1) * (Math.exp(a * Math.log(1 + L)) - 1)); }
-  function daysToPos(d) { var L = d < 0 ? Lp : Lf; return Math.round((d < 0 ? -1 : 1) * Math.log(1 + Math.abs(d)) / Math.log(1 + L) * 1000); }
+  function makeCurve(K, L) {                             // K steps of the slider cover L days; day(step) and step(day), both counted away from today
+    if (L <= K) return { day: function (p) { return Math.round(p * L / K); }, step: function (d) { return Math.round(d * K / L); } };
+    var lo = 1e-7, hi = 1, b = 0, i;                      // day = (e^(b·step) − 1) / b has a slope of 1 day per step at today; find the b that reaches L at step K
+    for (i = 0; i < 60; i++) { b = (lo + hi) / 2; if ((Math.exp(b * K) - 1) / b > L) hi = b; else lo = b; }
+    b = (lo + hi) / 2;
+    return { day: function (p) { return Math.round((Math.exp(b * p) - 1) / b); }, step: function (d) { return Math.round(Math.log(1 + d * b) / b); } };
+  }
+  function smooth01(k) { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); }
+  function setupSlider() {
+    var w = Math.max(120, (inp.clientWidth || 400) - 30);   // the thumb is 30px wide, so it only travels the width minus that
+    var frac = 0.07 + 0.30 * smooth01(Math.log(1 + Lp / 365) / Math.log(31));   // a little for the past now; more and more as you have more past
+    frac = Math.min(0.4, Math.max(frac, 44 / w));          // never so short that the thumb cannot be moved into it
+    Pl = Math.round(frac * 1000); Pf = 1000 - Pl;
+    cvP = makeCurve(Pl, Lp); cvF = makeCurve(Pf, Lf);
+    inp.min = String(-Pl); inp.max = String(Pf);
+    inp.style.setProperty('--p0', frac.toFixed(4));
+  }
+  function posToDays(p) { return p < 0 ? -cvP.day(-p) : cvF.day(p); }
+  function daysToPos(d) { return Math.max(-Pl, Math.min(Pf, d < 0 ? -cvP.step(-d) : cvF.step(d))); }
   function readout() {
     var w = $('unWhen'); w.textContent = '';
     w.appendChild(document.createTextNode(focus === 0 ? t('un.today') : fmtOff(focus)));
     w.appendChild(el('small', '', focus === 0 ? fmtOff(0) : away(focus)));
   }
   function setFocus(d, fromSlider) {
-    focus = d; uni.setFocus(d); readout();
-    if (!fromSlider) $('unFocus').value = String(daysToPos(d));
+    focus = d; uni.setFocus(d); readout(); markCurrent();
+    if (!fromSlider) inp.value = String(daysToPos(d));
   }
 
   /* ---------- the panel ---------- */
   function iconOf(c) { return c.kind === 'goal' ? 'goal' : c.kind === 'study' ? 'study' : 'life'; }
-  function pillFor(c, days, what, date) {
-    return Countdown.pill({ icon: iconOf(c), label: c.title, sub: kindName(c) + (what ? ' · ' + t('un.' + what) : ''), days: days, date: date, hue: c.hue,
-      state: c.end < 0 ? 'past' : '', fill: c.lit != null ? c.lit : (c.end > c.start ? Math.max(0, Math.min(1, (0 - c.start) / (c.end - c.start))) : 1) });
+  function pillOpts(c) {                                 // the one big card for a cell: what is the next thing about it, counted from today
+    var what, days;
+    if (c.start > 0) { what = 'starts'; days = c.start; }
+    else if (c.open) { what = 'started'; days = c.start; }
+    else if (c.end >= 0) { what = 'ends'; days = c.end; }
+    else { what = 'ended'; days = c.end; }
+    return { icon: iconOf(c), label: c.title, sub: kindName(c) + ' · ' + t('un.' + what), days: days, date: fmtOff(days), hue: c.hue, state: c.end < 0 ? 'past' : '',
+      fill: c.lit != null ? c.lit : (c.end > c.start ? Math.max(0, Math.min(1, (0 - c.start) / (c.end - c.start))) : 1) };
   }
-  function statusPill(c) {                               // the one big card for a cell: what is the next thing about it, counted from today
-    if (c.start > 0) return pillFor(c, c.start, 'starts', fmtOff(c.start));
-    if (c.open) return pillFor(c, c.start, 'started', fmtOff(c.start));
-    if (c.end >= 0) return pillFor(c, c.end, 'ends', fmtOff(c.end));
-    return pillFor(c, c.end, 'ended', fmtOff(c.end));
-  }
+  function statusPill(c) { return Countdown.pill(pillOpts(c)); }
   function byId(id) { for (var i = 0; i < data.cells.length; i++) if (data.cells[i].id === id) return data.cells[i]; return null; }
+  function cardOf(id) { var all = bodyEl.querySelectorAll('.cd-item'); for (var i = 0; i < all.length; i++) if (all[i].dataset.id === id) return all[i]; return null; }
 
-  function comingPanel() {
-    var f = document.createDocumentFragment();
-    f.appendChild(el('h2', '', t('un.coming')));
-    var evs = [];
-    data.cells.forEach(function (c) {                    // one card per cell: the next thing about it
-      if (c.start > 0) evs.push({ days: c.start, c: c, what: 'starts' });
-      else if (!c.open && c.end >= 0 && c.end > c.start) evs.push({ days: c.end, c: c, what: 'ends' });
+  /* the list beside the ball: every cell has a card. Pointing at a card lights its cell in the ball and the other way round; the cards that cover the day on the slider get a ring. */
+  function setCardHl(id) {
+    Array.prototype.forEach.call(bodyEl.querySelectorAll('.cd-item.hl'), function (n) { if (n.dataset.id !== id) n.classList.remove('hl'); });
+    var it = id ? cardOf(id) : null; if (it) it.classList.add('hl');
+  }
+  function markCurrent() {
+    Array.prototype.forEach.call(bodyEl.querySelectorAll('.cd-item'), function (it) {
+      var c = byId(it.dataset.id), on = focus !== 0 && !!c && c.start <= focus && (c.open || c.end >= focus);
+      if (it.firstChild) it.firstChild.classList.toggle('cur', on);
     });
-    evs.sort(function (a, b) { return a.days - b.days; });
-    evs = evs.slice(0, 5);
-    if (!evs.length) f.appendChild(el('p', 'un-empty', t('un.comingNone')));
-    else {
-      var lad = Countdown.ladder(evs.map(function (e) { return { icon: iconOf(e.c), label: e.c.title, sub: kindName(e.c) + ' · ' + t('un.' + e.what), days: e.days, date: fmtOff(e.days), hue: e.c.hue, fill: e.c.lit != null ? e.c.lit : null }; }));
-      Array.prototype.forEach.call(lad.querySelectorAll('.cd-item'), function (it, i) {
-        var cell = evs[i].c; it.addEventListener('click', function () { select(cell.id); });
-      });
-      f.appendChild(lad);
-    }
-    f.appendChild(el('p', 'un-count', t('un.count', { n: data.cells.length })));
+  }
+  function reveal(id) {                                  // coming back from a cell: scroll its card to the middle and let it pulse once
+    var it = cardOf(id); if (!it) return;
+    var r = it.getBoundingClientRect(), b = bodyEl.getBoundingClientRect();
+    bodyEl.scrollTop += (r.top - b.top) - (b.height - r.height) / 2;
+    it.classList.remove('flash'); void it.offsetWidth; it.classList.add('flash');
+    setTimeout(function () { it.classList.remove('flash'); }, 1600);
+  }
+  function section(f, key, list, none) {
+    var h = el('h2', '', t(key)); h.appendChild(el('span', 'un-n', String(list.length))); f.appendChild(h);
+    if (!list.length) { if (none) f.appendChild(el('p', 'un-empty', none)); return; }
+    var lad = Countdown.ladder(list.map(pillOpts));
+    Array.prototype.forEach.call(lad.querySelectorAll('.cd-item'), function (it, i) {
+      var cell = list[i];
+      it.dataset.id = cell.id; it.tabIndex = 0; it.setAttribute('role', 'button');
+      it.addEventListener('click', function () { select(cell.id); });
+      it.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(cell.id); } });
+      function on() { setCardHl(cell.id); uni.highlight(cell.id); }
+      function off() { setCardHl(null); uni.highlight(null); }
+      it.addEventListener('pointerenter', on); it.addEventListener('pointerleave', off);
+      it.addEventListener('focus', on); it.addEventListener('blur', off);
+    });
+    f.appendChild(lad);
+  }
+  function listPanel() {
+    var f = document.createDocumentFragment(), now = [], soon = [], gone = [];
+    data.cells.forEach(function (c) { if (c.start > 0) soon.push(c); else if (c.open || c.end >= 0) now.push(c); else gone.push(c); });
+    now.sort(function (a, b) { return (a.open ? 1e9 : a.end) - (b.open ? 1e9 : b.end); });   // the one that ends first, first
+    soon.sort(function (a, b) { return a.start - b.start; });
+    gone.sort(function (a, b) { return b.end - a.end; });                                     // the most recent first
+    if (now.length) section(f, 'un.now', now);
+    section(f, 'un.coming', soon, t('un.comingNone'));
+    if (gone.length) section(f, 'un.behind', gone);
     f.appendChild(el('p', 'un-hint', t('un.hint')));
     return f;
   }
@@ -107,16 +151,19 @@
     return f;
   }
   function renderPanel() {
-    bodyEl.textContent = '';
     var c = selId ? byId(selId) : null;
     if (selId && !c) selId = null;
+    var mode = c ? 'cell' : 'list', keep = mode === 'list' && shown === 'list' ? bodyEl.scrollTop : 0;   // refreshing the list must not throw you back to the top
+    bodyEl.textContent = '';
     var close = el('button', 'un-btn un-close', t('un.close')); close.type = 'button'; close.addEventListener('click', function () { panel.classList.remove('open'); $('unGrab').setAttribute('aria-expanded', 'false'); layout(); });
     bodyEl.appendChild(close);
-    bodyEl.appendChild(c ? cellPanel(c) : comingPanel());
-    bodyEl.scrollTop = 0;
+    bodyEl.appendChild(c ? cellPanel(c) : listPanel());
+    shown = mode; bodyEl.scrollTop = keep; markCurrent();
+    if (mode === 'list' && backTo) { var id = backTo; backTo = null; reveal(id); }
   }
+  function setSel(id) { if (!id && selId) backTo = selId; selId = id || null; }
   function select(id) {
-    selId = id || null; uni.select(selId); renderPanel();
+    setSel(id); uni.select(selId); renderPanel();
     if (mobile.matches && selId) openSheet();
   }
   function openSheet() { panel.classList.add('open'); $('unGrab').setAttribute('aria-expanded', 'true'); layout(); }
@@ -160,7 +207,8 @@
 
   /* ---------- data in, ball updated ---------- */
   function refresh(instant) {
-    data = UniData.load(); extents();
+    data = UniData.load(); extents(); setupSlider();
+    focus = Math.max(-Math.round(Lp), Math.min(Math.round(Lf), focus)); uni.setFocus(focus);
     uni.setCells(data.cells, { instant: !!instant });
     var ex = $('unEx'); ex.hidden = data.mineCount === 0; ex.setAttribute('aria-pressed', data.wantsExample ? 'true' : 'false');
     var bn = $('unBanner'); bn.textContent = '';
@@ -171,7 +219,7 @@
       var li = el('li'), b = el('button', '', c.title + ', ' + kindName(c) + ', ' + fmtIso(c.from) + (c.to ? ' → ' + fmtIso(c.to) : '')); b.type = 'button';
       b.addEventListener('click', function () { select(c.id); uni.select(c.id); }); li.appendChild(b); list.appendChild(li);
     });
-    $('unFocus').value = String(daysToPos(focus)); readout();
+    inp.value = String(daysToPos(focus)); readout();
     renderPanel();
   }
 
@@ -193,21 +241,22 @@
       introWatch = 0; document.body.classList.remove('un-intro'); $('unSkip').hidden = true;
     })();
   }
-  function playIntro() { selId = null; uni.select(null); renderPanel(); uni.playIntro(); if (uni.introRunning()) watchIntro(); }
+  function playIntro() { selId = null; backTo = null; uni.select(null); renderPanel(); uni.playIntro(); if (uni.introRunning()) watchIntro(); }
   function skip() { if (uni.introRunning()) uni.skipIntro(); }
 
   /* ---------- start ---------- */
   function hover(id, x, y) {
+    setCardHl(id);                                       // the card of the cell under the pointer lights up in the list
     if (!id || mobile.matches || 'ontouchstart' in window && !window.matchMedia('(hover: hover)').matches) { tip.hidden = true; return; }
     var c = byId(id); if (!c) { tip.hidden = true; return; }
     tip.textContent = ''; tip.appendChild(el('b', '', c.title)); tip.appendChild(el('span', '', kindName(c) + ' · ' + fmtIso(c.from) + (c.open ? ' → ' + t('un.ongoing') : ' → ' + fmtIso(c.to))));
     tip.hidden = false; var w = tip.offsetWidth, h = tip.offsetHeight;
     tip.style.left = Math.min(window.innerWidth - w - 8, x + 16) + 'px'; tip.style.top = Math.max(8, Math.min(window.innerHeight - h - 8, y + 18)) + 'px';
   }
-  uni = Universe.create(canvas, { onSelect: function (id) { selId = id || null; renderPanel(); if (mobile.matches && selId) openSheet(); }, onHover: hover });
+  uni = Universe.create(canvas, { onSelect: function (id) { setSel(id); renderPanel(); if (mobile.matches && selId) openSheet(); }, onHover: hover });
   canvas.addEventListener('pointerdown', skip);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { skip(); if (selId && !dlg.open) { select(null); uni.select(null); } } });
-  $('unFocus').addEventListener('input', function (e) { setFocus(posToDays(parseInt(e.target.value, 10) || 0), true); });
+  inp.addEventListener('input', function (e) { setFocus(posToDays(parseInt(e.target.value, 10) || 0), true); });
   $('unNow').addEventListener('click', function () { setFocus(0); });
   $('unAdd').addEventListener('click', function () { openForm(null); });
   $('unEx').addEventListener('click', function () { UniData.setExample(data.mode !== 'example'); selId = null; uni.select(null); refresh(false); });
@@ -216,7 +265,7 @@
   $('unSave').addEventListener('click', function () {
     var a = el('a'); a.download = 'universe-' + GoalMath.iso(new Date()) + '.png'; a.href = uni.snapshot(); document.body.appendChild(a); a.click(); a.remove();
   });
-  window.addEventListener('resize', layout);
+  window.addEventListener('resize', function () { layout(); setupSlider(); inp.value = String(daysToPos(focus)); });
   if (mobile.addEventListener) mobile.addEventListener('change', layout);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(false); });
   window.addEventListener('storage', function (e) { if (/^tf-(goals|uni|hist)$/.test(e.key || '')) refresh(false); });

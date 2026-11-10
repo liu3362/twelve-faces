@@ -60,7 +60,15 @@ body.un { background: var(--bg); color: var(--ink); font: 15px/1.45 var(--f-body
 .un-prog i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, #ffe08a, #ff9a62); }
 .un-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .un-back2 { margin-bottom: 12px; }
-.un-count { margin: 16px 2px 0; font-size: 12.5px; color: var(--mute); }
+.un-pbody h2 { display: flex; align-items: center; gap: 8px; }
+.un-pbody .cd-ladder + h2 { margin-top: 26px; }
+.un-n { padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .1); font: 600 11px/1.3 var(--f-mono); letter-spacing: 0; color: var(--ink); }
+.un-pbody .cd-item { outline: none; border-radius: 999px; }
+.un-pbody .cd-item .cd { transition: transform .2s, box-shadow .25s, filter .25s; }
+.un-pbody .cd-item.hl .cd { box-shadow: 0 0 0 3px rgba(255, 255, 255, .9), 0 0 22px hsl(var(--ch) 90% 70% / .65), 0 10px 22px hsl(var(--ch) 60% 18% / .38), inset 0 0 0 1.5px hsl(0 0% 100% / .5), inset 0 2px 0 hsl(0 0% 100% / .3); transform: translateY(-1px); }
+.un-pbody .cd-item:focus-visible .cd { box-shadow: 0 0 0 3px var(--accent), 0 8px 18px hsl(var(--ch) 60% 18% / .3); }
+.un-pbody .cd-item.flash .cd { animation: un-flash 1.5s ease-out; }
+@keyframes un-flash { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .95), 0 0 0 0 hsl(var(--ch) 90% 70% / .8); } 30% { box-shadow: 0 0 0 4px rgba(255, 255, 255, .95), 0 0 30px 6px hsl(var(--ch) 90% 70% / .8); } 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0), 0 8px 18px hsl(var(--ch) 60% 18% / .3); } }
 .un-hint { margin: 16px 2px 0; font-size: 12.5px; color: var(--mute); }
 
 /* the time slider */
@@ -72,8 +80,11 @@ body.un { background: var(--bg); color: var(--ink); font: 15px/1.45 var(--f-body
 .un-when small { font: 500 12.5px var(--f-body); color: var(--mute); margin-left: 6px; }
 .un-track { display: flex; align-items: center; gap: 12px; }
 .un-track input { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; height: 32px; margin: 0; background: transparent; cursor: pointer; touch-action: pan-y; }
-.un-track input::-webkit-slider-runnable-track { height: 8px; border-radius: 8px; background: linear-gradient(90deg, #8a5a1e, #e6b45e 48%, #fff4d6 50%, #8fb0ff 52%, #6d5bf0); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
-.un-track input::-moz-range-track { height: 8px; border-radius: 8px; background: linear-gradient(90deg, #8a5a1e, #e6b45e 48%, #fff4d6 50%, #8fb0ff 52%, #6d5bf0); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+/* today is not in the middle: --p0 (set by the page) is how much of the track belongs to the past. The thumb is 30px wide, so its centre travels from 15px to the width minus 15px. */
+.un-track input { --p0: .07; --x0: calc(15px + (100% - 30px) * var(--p0)); --track: linear-gradient(90deg, #7a4d17 0, #c98f3c calc(var(--x0) - 22px), #fff0c4 var(--x0), #8fb0ff calc(var(--x0) + 22px), #6d5bf0 100%); }
+.un-track input::-webkit-slider-runnable-track { height: 8px; border-radius: 8px; background: var(--track); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+.un-track input::-moz-range-track { height: 8px; border-radius: 8px; background: var(--track); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+
 .un-track input::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -11px; border-radius: 50%; border: 0;
   background: radial-gradient(circle at 35% 30%, #fff7cf, #e9bd4f 58%, #b98a22); box-shadow: 0 0 0 3px rgba(255, 255, 255, .55), 0 0 18px rgba(255, 210, 110, .7), 0 3px 8px rgba(0, 0, 0, .5); }
 .un-track input::-moz-range-thumb { width: 30px; height: 30px; border-radius: 50%; border: 0;

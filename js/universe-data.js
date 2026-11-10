@@ -39,11 +39,13 @@
     try { var v = JSON.parse(localStorage.getItem('tf-goals') || 'null'); return v && Array.isArray(v.goals) ? v.goals : []; } catch (e) { return []; }
   }
 
-  /* a made-up life, measured from today, so the example always has a past, a present and a future */
+  /* a made-up life, measured from today: it looks forward (the road ahead), with just a little behind you and a few things under way now.
+   * [start, end, kind, hue, lit]  start/end are days from today; lit is the progress of a goal (or of a study that tracks it) */
   var EX = [
-    [-8200, -5600, 'life', 35, null], [-5500, -2400, 'life', 160, null], [-2300, -520, 'life', 265, null], [-2000, -1500, 'study', 195, null],
-    [-500, 420, 'life', 330, null], [-130, 90, 'study', 12, 0.55], [-34, 110, 'goal', 215, 0.34], [-12, 700, 'goal', 155, 0.08],
-    [60, 330, 'goal', 48, null], [420, 1250, 'life', 290, null], [800, 1100, 'life', 190, null], [1000, 1800, 'goal', 100, null]
+    [-60, -24, 'study', 190, null], [-45, -8, 'life', 35, null],                                       // just behind you
+    [-58, 90, 'goal', 12, 0.55], [-34, 110, 'study', 215, null], [-12, 700, 'goal', 155, 0.08], [-20, 400, 'life', 330, null],   // under way now
+    [20, 140, 'study', 75, null], [60, 330, 'goal', 48, null], [200, 520, 'goal', 255, null],           // soon
+    [420, 1250, 'life', 290, null], [800, 1100, 'study', 100, null], [1000, 1800, 'goal', 22, null]     // further on
   ];
   function sample() {
     return EX.map(function (e, i) {

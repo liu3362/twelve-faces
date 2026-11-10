@@ -10,7 +10,8 @@
  *
  * Universe.create(canvas, {mini, padding:{l,t,r,b}, onSelect(id), onHover(id, x, y)}) -> controller
  *   setCells([{id, title, hue, kind, start, end, w, lit, goal}])  start/end are day offsets from today (0 = today, -30 = a month ago); w = weight (size)
- *   setFocus(days) · select(id) · playIntro() · resize() · setPadding({l,t,r,b}) · snapshot() · destroy() · cellAt(x, y) */
+ *   setFocus(days) · select(id) · highlight(id) · playIntro() · resize() · setPadding({l,t,r,b}) · snapshot() · destroy() · cellAt(x, y)
+ *   highlight(id) lights a cell from outside (the list beside the ball does this when you point at a card). */
 (function (global) {
   'use strict';
   var TAU = Math.PI * 2, MP = 72, MB = 96, GAP = 2.6;
@@ -32,7 +33,8 @@
     var cx = 0, cy = 0, cxT = 0, cyT = 0, ready = false, Rmax = 100, Rmin = 60, R = 60, Rv = 0, Rt = 60, WS = 1;   // WS: how big the skin's wobble may be (it is in pixels, so a small ball gets a small wobble)
     var cells = [], byId = {}, T = 0, last = 0, raf = 0, alive = true;
     var focusT = 0, focusS = 0, horizon = 90;
-    var sel = null, hover = null, drag = null, ptr = { x: -1e4, y: -1e4, in: false };
+    var sel = null, hover = null, hi = null, drag = null, ptr = { x: -1e4, y: -1e4, in: false };
+    var offS = 0, OFFK = 0.85;                               // the group of cells is re-centred in the ball: most of what you have is ahead of you, and the ball should not lean right
     var wave = new Float32Array(MB), wv = new Float32Array(MB), ballPts = new Float32Array(MB * 2);
     var introT = -1, INTRO = 8, zoom = 1, introBall = 1, introCell = 1, introSeen = false, introPop = false;
     var reduced = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -76,7 +78,7 @@
         spin: h1 * TAU, spinV: (0.32 + 0.3 * h2) * (h3 < 0.5 ? 1 : -1), yoff: h3 * 2 - 1, wob: h2 * TAU, born: T, px: 0, py: 0 };
       // a new bubble opens in its own slot of time (past to the left, future to the right) and the others make room for it
       var dd = distDays(c, focusS), u = dd / horizon;
-      c.x = Rt * 0.7 * Math.tanh(u * 1.25) + (h2 - 0.5) * Rt * 0.25; c.y = Rt * 0.46 * c.yoff;
+      c.x = Rt * 0.7 * Math.tanh(u * 1.25) - OFFK * offS + (h2 - 0.5) * Rt * 0.25; c.y = Rt * 0.46 * c.yoff;
       if (instant) { c.x *= 0.8; c.y *= 0.8; }
       return c;
     }
@@ -154,7 +156,7 @@
       var K0 = lerp(0.40, 0.29, grow), A0 = 0, wRef = 1.5;
       for (i = 0; i < cells.length; i++) { c = cells[i]; c.r0 = Rt * K0 * Math.sqrt(c.d.w / wRef); if (!c.dying) A0 += Math.PI * c.r0 * c.r0; }
       var cap = Math.PI * Rt * Rt * 1.02, sc = A0 > cap ? Math.sqrt(cap / A0) : 1;
-      var tau = Math.max(6, horizon * 0.05);
+      var tau = Math.max(6, horizon * 0.05), mw = 0, mx = 0;
       for (i = cells.length - 1; i >= 0; i--) {
         c = cells[i];
         c.rt = c.r0 * sc;
@@ -162,12 +164,16 @@
         if (c.dying && c.s < 0.02) { cells.splice(i, 1); delete byId[c.id]; if (sel === c.id) { sel = null; cbSelect(null); } if (hover === c.id) hover = null; continue; }
         c.r = c.rt * c.s;
         var dd = distDays(c, focusS), pres = Math.exp(-Math.abs(dd) / tau);
-        c.past += ((dd < 0 ? 1 - pres : 0) - c.past) * k5; c.fut += ((dd > 0 ? 1 - pres : 0) - c.fut) * k5;
+        c.past += ((dd < 0 ? 0.5 + 0.5 * (1 - pres) : 0) - c.past) * k5; c.fut += ((dd > 0 ? 1 - pres : 0) - c.fut) * k5;
         c.lit += (litAt(c, focusS) - c.lit) * k5;
-        c.hl += (((sel === c.id ? 1 : 0) * 0.9 + (hover === c.id ? 0.55 : 0)) - c.hl) * k5;
+        c.hl += (((sel === c.id ? 1 : 0) * 0.9 + (hover === c.id || hi === c.id ? 0.55 : 0)) - c.hl) * k5;
         var u = dd / horizon;
-        c.px = Rt * 0.7 * Math.tanh(u * 1.25) + (dd === 0 ? (hashStr(c.id + 'p') - 0.5) * Rt * 0.22 : 0); c.py = Rt * 0.46 * c.yoff;
+        c.pb = Rt * 0.7 * Math.tanh(u * 1.25);                // its place on the road of time: the day we look at is 0, the future to the right, the past to the left
+        c.px = c.pb + (dd === 0 ? (hashStr(c.id + 'p') - 0.5) * Rt * 0.22 : 0); c.py = Rt * 0.46 * c.yoff;
+        if (!c.dying) { var aw = c.rt * c.rt * c.s; mw += aw; mx += aw * c.pb; }
       }
+      offS += ((mw > 0 ? mx / mw : 0) - offS) * (1 - Math.exp(-dt * 2.4));   // the centre of all the cells, smoothed so the group glides when you move the slider
+      for (i = 0; i < cells.length; i++) cells[i].px -= OFFK * offS;
       for (i = 0; i < cells.length; i++) {
         c = cells[i];
         if (drag && drag.c === c) { c.x += (drag.x - c.x) * Math.min(1, dt * 20); c.y += (drag.y - c.y) * Math.min(1, dt * 20); c.vx = c.vy = 0; continue; }
@@ -253,8 +259,9 @@
       else { body.addColorStop(0, 'rgba(70,90,190,.34)'); body.addColorStop(0.7, 'rgba(26,36,96,.46)'); body.addColorStop(1, 'rgba(70,100,220,.34)'); }
       ctx.fillStyle = body; ctx.fill(ballPath);
       // the heart of "now": a soft warm light at the centre
-      var hl = ctx.createRadialGradient(0, 0, 0, 0, 0, Rr * 0.5); hl.addColorStop(0, 'rgba(255,214,150,' + (mini ? 0.35 : 0.22) + ')'); hl.addColorStop(1, 'rgba(255,214,150,0)');
-      ctx.fillStyle = hl; ctx.beginPath(); ctx.arc(0, 0, Rr * 0.5, 0, TAU); ctx.fill();
+      var gx = -OFFK * offS;                                 // ... which sits where the day we look at sits (left of the middle when most cells are still ahead)
+      var hl = ctx.createRadialGradient(gx, 0, 0, gx, 0, Rr * 0.5); hl.addColorStop(0, 'rgba(255,214,150,' + (mini ? 0.35 : 0.22) + ')'); hl.addColorStop(1, 'rgba(255,214,150,0)');
+      ctx.fillStyle = hl; ctx.beginPath(); ctx.arc(gx, 0, Rr * 0.5, 0, TAU); ctx.fill();
       if (!mini) {                                           // dust floating in the unknown
         ctx.clip(ballPath);
         for (var i = 0; i < 46; i++) {
@@ -276,9 +283,9 @@
         ctx.save(); ctx.shadowColor = 'rgba(0,0,10,' + (0.42 * (1 - fu * 0.8)).toFixed(2) + ')'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 6; ctx.fillStyle = 'rgba(10,14,40,.5)'; ctx.fill(path); ctx.restore();
       }
       var g = ctx.createRadialGradient(ccx - rr * 0.22, ccy - rr * 0.32, rr * 0.08, ccx, ccy, rr * 1.15);
-      var s1 = blend(76, 60, 80, pr, pa, fu), s2 = blend(58, 45, 66, pr, pa, fu), s3 = blend(42, 31, 58, pr, pa, fu);
-      var sat = blend(86, 58, 70, pr, pa, fu);
-      var a1 = blend(0.96, 0.94, 0.3, pr, pa, fu), a2 = blend(0.94, 0.92, 0.2, pr, pa, fu), a3 = blend(0.93, 0.92, 0.12, pr, pa, fu);
+      var s1 = blend(76, 56, 80, pr, pa, fu), s2 = blend(58, 41, 66, pr, pa, fu), s3 = blend(42, 28, 58, pr, pa, fu);
+      var sat = blend(86, 36, 70, pr, pa, fu);
+      var a1 = blend(0.96, 0.94, 0.5, pr, pa, fu), a2 = blend(0.94, 0.92, 0.4, pr, pa, fu), a3 = blend(0.93, 0.92, 0.3, pr, pa, fu);
       var hh = Math.round(hue);
       g.addColorStop(0, 'hsla(' + hh + ',' + Math.round(sat) + '%,' + Math.round(s1 + hl * 6) + '%,' + a1.toFixed(2) + ')');
       g.addColorStop(0.55, 'hsla(' + hh + ',' + Math.round(sat) + '%,' + Math.round(s2 + hl * 5) + '%,' + a2.toFixed(2) + ')');
@@ -305,8 +312,8 @@
       // the die
       var dieR = clamp(c.minR * 0.62, 0, c.rt * 0.8), bob = reduced ? 0 : Math.sin(T * 1.1 + c.wob) * dieR * 0.05;
       if (dieR > (mini ? 2.2 : 6)) {
-        Dodeca.paint(ctx, { x: ccx, y: ccy + bob - (mini ? 0 : rr * 0.02), r: dieR, spin: c.spin, lit: c.lit * 12, ghost: fu * 0.85, hue: hh, sat: Math.round(blend(86, 60, 70, pr, pa, fu)), lum: Math.round(blend(62, 56, 70, pr, pa, fu)),
-          alpha: blend(1, 0.9, 0.8, pr, pa, fu), glow: pr * (0.4 + 0.6 * c.lit) * (mini ? 0.6 : 1) });
+        Dodeca.paint(ctx, { x: ccx, y: ccy + bob - (mini ? 0 : rr * 0.02), r: dieR, spin: c.spin, lit: c.lit * 12, ghost: fu * 0.85, hue: hh, sat: Math.round(blend(86, 34, 70, pr, pa, fu)), lum: Math.round(blend(62, 54, 70, pr, pa, fu)),
+          alpha: blend(1, 0.86, 0.8, pr, pa, fu), glow: pr * (0.4 + 0.6 * c.lit) * (mini ? 0.6 : 1) });
       } else if (mini || dieR > 1) {
         ctx.fillStyle = 'hsla(' + hh + ',90%,82%,' + (0.9 - 0.5 * fu).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(ccx, ccy, Math.max(1.2, dieR * 0.6), 0, TAU); ctx.fill();
       }
@@ -485,6 +492,7 @@
       setFocus: function (d) { focusT = d; },
       getFocus: function () { return focusT; },
       select: function (id) { sel = id || null; },
+      highlight: function (id) { hi = id || null; },
       selected: function () { return sel; },
       playIntro: function () { if (reduced || mini) return; introT = T; introSeen = true; introPop = false; cells.forEach(function (c) { c.s = 1; c.sv = 0; }); },
       introRunning: function () { return introT >= 0; },
