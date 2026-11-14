@@ -20,7 +20,9 @@
     book: 'M3 3.500c2-.8 3.700-.6 5 .6 1.300-1.200 3-1.400 5-.6v9c-2-.8-3.700-.6-5 .6-1.300-1.200-3-1.400-5-.6zM8 4.100v9',
     video: 'M2 4.500h8.500v7H2zM10.500 7l3.500-2v6l-3.500-2', course: 'M8 3L1.500 6 8 9l6.500-3zM4 7.600v3.400c1 1 2.500 1.500 4 1.500s3-.5 4-1.500V7.600',
     web: 'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2.300 2.200 2.300 9.800 0 12M8 2c-2.300 2.200-2.300 9.800 0 12', tool: 'M10 2.500a3.200 3.200 0 0 0-3 4.300L2.500 11.300l2.200 2.200 4.500-4.500a3.200 3.200 0 0 0 4.300-3l-2 1.500-1.800-1.800z',
-    other: 'M4 2.500h5.500L12.500 5.500v8H4zM9.500 2.500v3h3', flag: 'M4 14V2.500M4 3h8l-2 3 2 3H4', fold: 'M4 6l4 4 4-4'
+    other: 'M4 2.500h5.500L12.500 5.500v8H4zM9.500 2.500v3h3', flag: 'M4 14V2.500M4 3h8l-2 3 2 3H4', fold: 'M4 6l4 4 4-4',
+    cal: 'M2.500 4.500h11v9h-11zM2.500 7.500h11M5.500 2.500v3M10.500 2.500v3', clock: 'M8 2.500a5.500 5.500 0 1 0 0 11 5.500 5.500 0 0 0 0-11zM8 5v3.200l2.200 1.300', steps: 'M2.500 4l1.500 1.500L6.200 3.300M2.500 9.500L4 11l2.200-2.200M8.500 4.500h5M8.500 10h5',
+    grip: 'M3 5.500h10M3 10.500h10'
   };
   function ic(name, size) {
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -55,6 +57,17 @@
   }
   function fmtMin(m) { m = Math.round(m); if (m < 60) return t('dur', { n: m, u: t('unit.min') }); var h = Math.floor(m / 60), r = m % 60; return t('dur', { n: h, u: t('unit.hour') }) + (r ? ' ' + t('dur', { n: r, u: t('unit.min') }) : ''); }
   function hue(plan, i) { return Countdown.journeyHue(plan.hue, i, Math.max(1, plan.steps.length)); }
+  /* the colours of a lit stage: as light as the hue allows while white text on it still reads (yellow has to be deep, blue can be bright) */
+  var slabMemo = {};
+  function lumOf(h, sat, l) {
+    var a = sat * Math.min(l, 1 - l), f = function (n) { var k = (n + h / 30) % 12, c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(0) + 0.7152 * f(8) + 0.0722 * f(4);
+  }
+  function slab(h) {
+    h = ((Math.round(h) % 360) + 360) % 360; var c = slabMemo[h]; if (c) return c;
+    var best = 0.14; for (var i = 14; i <= 66; i++) if (1.05 / (lumOf(h, 0.74, i / 100) + 0.05) >= 4.5) best = i / 100;
+    return (slabMemo[h] = { a: 'hsl(' + h + ' 74% ' + Math.round(best * 100) + '%)', b: 'hsl(' + h + ' 78% ' + Math.round(best * 68) + '%)' });
+  }
 
   /* ---------- the toast, with an undo ---------- */
   var toastTimer = 0;
@@ -101,7 +114,13 @@
         bs[(k + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length].focus();
       }
     };
-    m.sc = function (e) { if (Date.now() - m.t0 < 300) return; if (!node.contains(e.target)) closeMenu(); };      // the scroll that brought the button into view arrives a moment after the click
+    var sp = anchor.closest ? anchor.closest('.pl-panel') : null, y0 = sp ? sp.scrollTop : 0, w0 = window.scrollY;
+    m.sc = function (e) {                                   // scrolling closes the menu, but not the scroll that brought the button into view (its event can arrive a few frames after the click)
+      if (Date.now() - m.t0 < 300 || node.contains(e.target)) return;
+      var cur = e.target === document ? window.scrollY : e.target.scrollTop, base = e.target === sp ? y0 : e.target === document ? w0 : null;
+      if (base !== null && Math.abs(cur - base) < 3) return;
+      closeMenu();
+    };
     document.addEventListener('pointerdown', m.off, true); document.addEventListener('keydown', m.key, true); window.addEventListener('scroll', m.sc, true);
     openMenu = m;
     var first = node.querySelector('button:not([disabled]),a'); if (first) first.focus();
@@ -171,13 +190,18 @@
   function uiGet() { try { return JSON.parse(localStorage.getItem('tf-plans-ui') || '{}') || {}; } catch (e) { return {}; } }
   function uiSet(o) { try { localStorage.setItem('tf-plans-ui', JSON.stringify(o)); } catch (e) {} }
 
+  /* the soft fade under the floating top bar only shows once the page has been scrolled */
+  var scRaf = 0;
+  window.addEventListener('scroll', function () { if (scRaf) return; scRaf = requestAnimationFrame(function () { scRaf = 0; document.body.classList.toggle('scrolled', (window.scrollY || 0) > 8); }); }, { passive: true });
+
   /* ================= routing ================= */
-  var leave = null, scrollMemo = {}, currentRefresh = null, pendingToast = null;
+  var leave = null, scrollMemo = {}, currentRefresh = null, pendingToast = null, cameFrom = null;
   function goTo(hash, msg, act) { pendingToast = msg ? { msg: msg, act: act } : null; if (location.hash === hash) route(); else location.hash = hash; }      // a message (with an optional action) to show once the next page is up
   function route() {
     closeMenu(); if (dlg.open) dlg.close();
     if (leave) { var f = leave; leave = null; f(); }
     hideToast();
+    document.body.classList.remove('v-plan'); main.className = 'pl-main'; main.style.removeProperty('--roadh');
     var h = location.hash || '#/', m = /^#\/p\/([\w-]+)(?:\/s\/([\w-]+))?$/.exec(h);
     var plan = m ? PD.get(m[1]) : null;
     if (m && !plan) { location.replace('#/'); return; }
@@ -185,40 +209,71 @@
     if (plan && m[2]) {
       var idx = PD.indexOf(plan, m[2]);
       if (idx < 0) { location.replace('#/p/' + plan.id); return; }
+      cameFrom = { plan: plan.id, id: m[2] };
       leave = global.PlanStage.render(plan, idx) || null;
     } else if (plan) leave = renderPlan(plan);
     else leave = renderHome();
+    if (!(plan && m[2]) && !plan) cameFrom = null;
     I18N.apply(main);
     document.title = (plan ? plan.title + ' · ' : '') + t('pl.title');
     if (pendingToast) { var pm = pendingToast; pendingToast = null; toast(pm.msg, pm.act); }
   }
-  window.addEventListener('hashchange', route);
+  /* Opening a stage: its row on the road grows into the stage page's head, and shrinks back when you return (where the browser can do it). */
+  var vtOff = false; try { vtOff = localStorage.getItem('tf-novt') === '1'; } catch (e) {}
+  var canVT = typeof document.startViewTransition === 'function' && !reduced && !vtOff, prevHash = location.hash;
+  function parseHash(h) { var m = /^#\/p\/([\w-]+)(?:\/s\/([\w-]+))?$/.exec(h || ''); return m ? { plan: m[1], sid: m[2] || '' } : null; }
+  window.addEventListener('hashchange', function () {
+    var to = parseHash(location.hash), from = parseHash(prevHash); prevHash = location.hash;
+    if (!canVT || document.hidden) { route(); return; }
+    var named = null;
+    if (to && to.sid) { named = main.querySelector('.pl-row[data-id="' + to.sid + '"]'); if (named) named.style.viewTransitionName = 'slab'; }
+    var vt;
+    try {
+      vt = document.startViewTransition(function () {
+        route();
+        if (from && from.sid && !(to && to.sid)) { var back = main.querySelector('.pl-row[data-id="' + from.sid + '"]'); if (back) { back.style.viewTransitionName = 'slab'; named = back; } }
+      });
+    } catch (e) { route(); return; }
+    var clear = function () { if (named && named.isConnected) named.style.viewTransitionName = ''; };
+    vt.finished.then(clear, clear);
+  });
+  prevHash = location.hash;
 
   /* ================= the plans (home) ================= */
   function countsLine(plan) {
     var c = PD.counts(plan), h = PD.hereIndex(plan);
     return h >= plan.steps.length && plan.steps.length ? t('pl.card.complete', { n: plan.steps.length }) : t('pl.card.at', { i: Math.min(h + 1, plan.steps.length), n: plan.steps.length });
   }
+  function sampleModel() {                       // a made-up road for the empty page: a few stages done, one in progress, the rest ahead
+    var n = 18, stages = [], i;
+    for (i = 0; i < n; i++) stages.push({ title: String(i + 1), status: i < 3 ? 'done' : (i === 3 ? 'doing' : 'todo'), fill: 0, hue: Countdown.journeyHue(215, i, n), from: '', to: '' });
+    return { stages: stages, phases: [], marks: [], here: 3, hue: 215, seed: 'sample', goal: { lit: 0.25, text: '', sub: '' } };
+  }
   function renderHome() {
     document.documentElement.style.setProperty('--h', 215);
     setCrumb([]); main.textContent = '';
     var plans = PD.list();
-    var hero = el('div', 'pl-hero'); hero.append(el('h1', '', t('pl.title')), el('p', '', t('pl.slogan'))); main.appendChild(hero);
+    var hero = el('header', 'pl-hero'), glyph = el('i', 'pl-glyph'), hg = el('div', 'pl-hgroup'); glyph.setAttribute('aria-hidden', 'true');
+    hg.append(el('h1', '', t('pl.title')), el('p', '', t('pl.slogan'))); hero.append(glyph, hg); main.appendChild(hero);
     var cards = el('div', 'pl-cards'), minis = [];
     plans.forEach(function (p) {
-      var a = el('a', 'pl-card'); a.href = '#/p/' + p.id;
+      var a = el('a', 'pl-card'); a.href = '#/p/' + p.id; a.style.setProperty('--h', p.hue);
       var mini = el('div', 'pl-mini'); a.appendChild(mini);
       var b = el('div', 'pl-cb'); b.appendChild(el('h3', '', p.title || t('pl.untitled')));
-      var end = PD.endDate(p), left = GM.nDays(GM.startOfToday(), GM.parse(end)), pc = Math.round(PD.progress(p) * 100);
-      b.appendChild(el('div', 'pl-cm', countsLine(p) + ' · ' + t('pl.card.pct', { n: pc })));
-      var bar = el('div', 'pl-bar'); var bi = el('i'); bi.style.width = pc + '%'; bar.appendChild(bi); b.appendChild(bar);
+      b.appendChild(el('div', 'pl-cm', countsLine(p)));
+      var end = PD.endDate(p), left = GM.nDays(GM.startOfToday(), GM.parse(end)), prog = PD.progress(p), pc = Math.round(prog * 100);
       var fin = p.steps.length && p.steps.every(function (x) { return x.status === 'done'; });
-      if (!fin) b.appendChild(el('div', 'pl-cm', !p.steps.length ? t('pl.card.empty') : left > 0 ? t('pl.card.ends', { date: fmtD(end, true), left: fmtDur(left) }) : t('pl.card.endsPast', { date: fmtD(end, true) })));
+      if (!p.steps.length) b.appendChild(el('div', 'pl-cm', t('pl.card.empty')));
+      else b.appendChild(Countdown.pill({ icon: 'goal', label: t('pl.card.finish'), sub: t('pl.card.pctDone', { n: pc }), days: left, date: fmtD(end, true), hue: p.hue, fill: prog, word: fin ? t('pl.card.done') : null }));
       a.appendChild(b); cards.appendChild(a); minis.push([p, mini]);
     });
     var nb = el('button', 'pl-card new'); nb.type = 'button';
-    var plus = el('span', 'plus'); plus.appendChild(ic('plus', 22)); nb.append(plus, el('b', '', t('pl.new')), el('span', '', t('pl.new.sub')));
+    var plus = el('span', 'plus'); plus.appendChild(ic('plus', 24)); nb.append(plus, el('b', '', t('pl.new')), el('span', '', t('pl.new.sub')));
     nb.addEventListener('click', function () { openCreate(); });
+    var sample = null;
+    if (!plans.length) {                                           // the first visit: a sample road beside the invitation, so you see what you are about to make
+      var ex = el('div', 'pl-card sample'); ex.setAttribute('aria-hidden', 'true'); sample = el('div', 'pl-mini'); ex.appendChild(sample); cards.appendChild(ex);
+    }
     cards.appendChild(nb); main.appendChild(cards);
     var bar2 = el('div', 'pl-hbar');
     bar2.appendChild(btn(t('pl.import'), '', function () { openCreate('paste'); }, 'down2'));
@@ -227,14 +282,17 @@
     if (goals.length) bar2.appendChild(btn(t('pl.fromGoals'), '', function () { openFromGoals(goals); }, 'chev'));
     main.appendChild(bar2);
     if (!plans.length) {
-      var how = el('div', 'pl-how');
-      [['pl.how1', 'pl.how1d'], ['pl.how2', 'pl.how2d'], ['pl.how3', 'pl.how3d']].forEach(function (k) { var d = el('div'); d.append(el('b', '', t(k[0])), el('span', '', t(k[1]))); how.appendChild(d); });
+      var how = el('ol', 'pl-how');
+      [['pl.how1', 'pl.how1d'], ['pl.how2', 'pl.how2d'], ['pl.how3', 'pl.how3d']].forEach(function (k, i) {
+        var d = el('li'), coin = el('span', 'n', String(i + 1)); d.append(coin, el('b', '', t(k[0]).replace(/^\s*\d+\s*[·.、)]\s*/, '')), el('span', 'd', t(k[1]))); how.appendChild(d);
+      });
       main.appendChild(how);
     }
     var roads = [], gone = false;
     requestAnimationFrame(function () {
       if (gone) return;
       roads = minis.map(function (x) { var r = PlanRoad.create(x[1], { mini: true }); r.update(roadModel(x[0])); r.setFocus(Math.min(PD.hereIndex(x[0]), Math.max(0, x[0].steps.length - 1)), true); return r; });
+      if (sample) { var r0 = PlanRoad.create(sample, { mini: true }); r0.update(sampleModel()); r0.setFocus(3, true); roads.push(r0); }
     });
     return function () { gone = true; roads.forEach(function (r) { r.destroy(); }); roads = []; };
   }
@@ -344,30 +402,44 @@
   }
 
   /* ================= one plan ================= */
+  var ROADH = [0.27, 0.45, 0.63], READ = 64;       // how tall the road is on a phone (a share of the window: small, medium, tall); how far below the panel's top edge the reading line runs
+  function numFor(plan, i, ds, here) {              // the big number on a stage's row: how long until it starts, or how long it has left
+    var s = plan.steps[i]; if (s.status === 'done') return null;
+    var today = GM.startOfToday(), from = GM.parse(ds.from), to = GM.parse(ds.to), n;
+    if (i === here && from <= today) {
+      if (to >= today) { n = GM.nDays(today, to) + 1; return { n: n, label: t(n === 1 ? 'pl.row.left1' : 'pl.row.left') }; }
+      n = GM.nDays(to, today); return { n: n, label: t(n === 1 ? 'pl.row.over1' : 'pl.row.over'), over: true };
+    }
+    n = GM.nDays(today, from);
+    if (n <= 0) return { word: t('pl.row.today') };
+    return { n: n, label: t(n === 1 ? 'pl.row.away1' : 'pl.row.away') };
+  }
   function renderPlan(plan) {
     document.documentElement.style.setProperty('--h', plan.hue);
+    document.body.classList.add('v-plan'); main.className = 'pl-main v-plan';
     setCrumb([{ text: t('pl.title'), href: '#/' }, { text: plan.title || t('pl.untitled') }]);
     main.textContent = '';
-    var V = { plan: plan, road: null, anchors: [], rowEls: [], folded: (uiGet()[plan.id] || {}), editing: null, readIdx: -1, raf: 0, busy: null, ctl: null };
-    if (plan.steps.length === 1 && !plan.steps[0].title) { V.editing = plan.steps[0].id; V.newId = plan.steps[0].id; }        // a blank plan: name the first stage right away
-    var head = el('header', 'pl-phead'), outline = el('div', 'pl-outline'), wrap = el('div', 'pl-roadwrap'), roadEl = el('div', 'pl-road');
-    var notes = el('div'), cap = el('div', 'pl-cap'), capN = el('b'), capT = el('span', 't'), capD = el('span', 'd'), capGo = el('a', 'pl-btn main sm');
-    cap.append(capN, capT, capD, capGo);
-    var rb = el('a', 'pl-rback'); rb.href = '#/'; rb.append(ic('back', 14), el('span', '', plan.title || t('pl.untitled'))); rb.title = t('pl.title');
-    var rt = el('div', 'pl-rtools');
-    wrap.append(roadEl, rb, rt, cap);
-    main.append(head, notes, wrap, outline, el('div', 'pl-spacer'));
+    var V = { plan: plan, road: null, anchors: [], rowEls: [], folded: (uiGet()[plan.id] || {}), editing: null, readIdx: -1, raf: 0, busy: null, ctl: null, rh: 1, f: 0 };
+    var ui0 = uiGet(); if (ui0['#rh'] >= 0 && ui0['#rh'] <= 2) V.rh = ui0['#rh'];
+    var scene = el('section', 'pl-scene'), roadEl = el('div', 'pl-road'), rt = el('div', 'pl-rtools'), scrub = el('div', 'pl-scrub');
+    scene.append(roadEl, rt, scrub);
+    var panel = el('aside', 'pl-panel'), handle = el('button', 'pl-handle'), head = el('header', 'pl-phead'), notes = el('div', 'pl-pnotes'), outline = el('div', 'pl-outline');
+    handle.type = 'button'; handle.setAttribute('role', 'separator'); handle.setAttribute('aria-orientation', 'horizontal'); handle.setAttribute('aria-label', t('pl.handle'));
+    panel.append(handle, head, outline, el('div', 'pl-spacer'), notes);        // the notes come last in the markup: they float at the bottom of the list
+    main.append(scene, panel);
+    function applyRoadH() { main.style.setProperty('--roadh', Math.round(window.innerHeight * ROADH[V.rh]) + 'px'); }
+    applyRoadH();
 
-    /* ---------- the top: title, numbers, and what you can do with the whole plan ---------- */
+    /* ---------- the top of the panel: title, the finish line, and what you can do with the whole plan ---------- */
     function buildHead() {
       head.textContent = '';
       head.appendChild(el('h1', 'pl-ptitle', plan.title || t('pl.untitled')));
       var n = plan.steps.length, end = PD.endDate(plan);
       head.appendChild(el('p', 'pl-pmeta', n ? t('pl.meta', { n: n, from: fmtD(plan.start, true), to: fmtD(end, true), h: plan.hours }) : t('pl.meta0', { h: plan.hours })));
       if (n) {
-        var st = el('div', 'pl-pstat'), bar = el('div', 'pl-bar'), bi = el('i'), pc = Math.round(PD.progress(plan) * 100); bi.style.width = pc + '%'; bar.appendChild(bi);
-        var c = PD.counts(plan); st.append(bar, el('b', '', pc + '%'), el('span', 'pl-small', t('pl.counts', { done: c.done, all: n }))); st.lastChild.style.margin = '0';
-        head.appendChild(st);
+        var prog = PD.progress(plan), pc = Math.round(prog * 100), left = GM.nDays(GM.startOfToday(), GM.parse(end)), c = PD.counts(plan), fin = plan.steps.every(function (x) { return x.status === 'done'; });
+        head.appendChild(Countdown.pill({ icon: 'goal', label: t('pl.card.finish'), sub: t('pl.card.pctDone', { n: pc }), days: left, date: fmtD(end, true), hue: plan.hue, fill: prog, word: fin ? t('pl.card.done') : null, state: fin ? '' : 'cur' }));
+        var st = el('div', 'pl-pstat'); st.appendChild(el('span', 'pl-small', t('pl.counts', { done: c.done, all: n }))); head.appendChild(st);
       }
       if (plan.summary) head.appendChild(el('p', 'pl-psum', plan.summary));
       var act = el('div', 'pl-pact');
@@ -385,20 +457,26 @@
       act.appendChild(more);
       head.appendChild(act);
       /* what the plan needs to say: you are behind, or the outline runs past your target date */
-      notes.textContent = ''; notes.className = '';
+      notes.textContent = '';
       var here = PD.hereIndex(plan), cal = PD.calendarIndex(plan), nn = n;
-      if (nn && here < nn && cal > here && GM.parse(plan.start) <= GM.startOfToday()) {
+      var dis = {}; try { dis = JSON.parse(sessionStorage.getItem('tf-pl-dis') || '{}') || {}; } catch (e) {}
+      function closable(node, key) {                    // the notes float at the top of the list; ✕ puts one away for this visit (it comes back if things change)
+        node.appendChild(btn('', 'ghost sm icon', function () { dis[key] = 1; try { sessionStorage.setItem('tf-pl-dis', JSON.stringify(dis)); } catch (e) {} node.remove(); }, 'x', t('pl.close')));
+        return node;
+      }
+      var kb = plan.id + ':behind:' + cal + ':' + here;
+      if (nn && here < nn && cal > here && GM.parse(plan.start) <= GM.startOfToday() && !dis[kb]) {
         var b1 = el('div', 'pl-note warn'); b1.appendChild(el('span', '', t('pl.behind', { cal: cal + 1, here: here + 1 })));
-        b1.appendChild(btn(t('pl.behind.fix'), 'sm main', function () { withUndo(plan, t('pl.rescheduled'), function () { PD.reschedule(plan); refreshAll(); }, refreshAll); })); notes.appendChild(b1);
+        b1.appendChild(btn(t('pl.behind.fix'), 'sm main', function () { withUndo(plan, t('pl.rescheduled'), function () { PD.reschedule(plan); refreshAll(); }, refreshAll); })); notes.appendChild(closable(b1, kb));
       }
       if (nn && plan.target) {
         var over = PD.dayOf(plan, end) - PD.dayOf(plan, plan.target);
         if (Math.abs(over) > 14) {
           var b2 = el('div', 'pl-note'); b2.appendChild(el('span', '', t(over > 0 ? 'pl.over' : 'pl.under', { n: fmtDur(Math.abs(over)), target: fmtD(plan.target, true) })));
-          b2.appendChild(btn(t('pl.fit'), 'sm', function () { withUndo(plan, t('pl.fitted'), function () { PD.fitToTarget(plan); refreshAll(); }, refreshAll); })); notes.appendChild(b2);
+          var ko = plan.id + ':over:' + (over > 0 ? 1 : 0) + ':' + Math.round(Math.abs(over) / 7);
+          b2.appendChild(btn(t('pl.fit'), 'sm', function () { withUndo(plan, t('pl.fitted'), function () { PD.fitToTarget(plan); refreshAll(); }, refreshAll); })); if (!dis[ko]) notes.appendChild(closable(b2, ko));
         }
       }
-      notes.style.margin = notes.children.length ? '0 0 14px' : '0';
     }
     function rebuild() {
       if (V.busy || !aiReady()) return;
@@ -435,26 +513,34 @@
       h.appendChild(acts);
       return h;
     }
-    function stageRow(i) {
-      var s = plan.steps[i], ds = V.ds[i], here = V.here, isHere = i === here;
-      var row = el('article', 'pl-row' + (s.status === 'done' ? ' done' : '') + (isHere ? ' here' : '')); row.dataset.i = i; row.dataset.id = s.id; row.style.setProperty('--th', hue(plan, i));
+    function chip(icon, text, cls) { var sp = el('span', cls || ''); sp.appendChild(ic(icon, 13)); sp.appendChild(document.createTextNode(text)); return sp; }
+    function stageRow(i, last) {
+      var s = plan.steps[i], ds = V.ds[i], here = V.here, isHere = i === here, th = hue(plan, i), sl = slab(th);
+      var row = el('article', 'pl-row' + (s.status === 'done' ? ' done' : '') + (isHere ? ' here' : '') + (last ? ' last' : '')); row.dataset.i = i; row.dataset.id = s.id;
+      row.style.setProperty('--th', th); row.style.setProperty('--tn', hue(plan, Math.min(i + 1, plan.steps.length - 1))); row.style.setProperty('--sa', sl.a); row.style.setProperty('--sb', sl.b);
       var n = el('button', 'pl-n'); n.type = 'button'; n.setAttribute('aria-pressed', s.status === 'done' ? 'true' : 'false'); n.setAttribute('aria-label', t('pl.row.toggle', { n: i + 1 })); n.title = t(s.status === 'done' ? 'pl.row.undone' : 'pl.row.done');
-      if (s.status === 'done') n.appendChild(ic('check', 15)); else n.textContent = String(i + 1);
+      if (s.status === 'done') n.appendChild(ic('check', 18)); else n.textContent = String(i + 1);
       n.addEventListener('click', function () { PD.setStatus(plan, s.id, s.status === 'done' ? 'todo' : 'done'); refreshAll(); });
       var c = el('div', 'pl-main-c'), a = el('a', 'pl-st', s.title || t('pl.untitled')); a.href = '#/p/' + plan.id + '/s/' + s.id; c.appendChild(a);
       if (s.goal) c.appendChild(el('p', 'pl-sg', s.goal));
-      var meta = el('div', 'pl-meta'); meta.appendChild(el('span', '', fmtRange(ds.from, ds.to))); meta.appendChild(el('span', '', fmtDur(s.days)));
-      if (s.tasks.length) meta.appendChild(el('span', '', t('pl.row.tasks', { done: s.tasks.filter(function (x) { return x.done; }).length, all: s.tasks.length })));
-      if (s.res.length) meta.appendChild(el('span', '', t('pl.row.res', { n: s.res.length })));
-      if (isHere) meta.insertBefore(el('span', 'here-tag', t('pl.here')), meta.firstChild);
+      var meta = el('div', 'pl-meta');
+      if (isHere) meta.appendChild(el('span', 'here-tag', t('pl.here')));
+      meta.appendChild(chip('cal', fmtRange(ds.from, ds.to))); meta.appendChild(chip('clock', fmtDur(s.days)));
+      if (s.tasks.length) meta.appendChild(chip('steps', t('pl.row.tasks', { done: s.tasks.filter(function (x) { return x.done; }).length, all: s.tasks.length })));
+      if (s.res.length) meta.appendChild(chip('book', t('pl.row.res', { n: s.res.length })));
       c.appendChild(meta);
+      var side = el('div', 'pl-side'), nf = numFor(plan, i, ds, here);
+      if (nf) {
+        var num = el('div', 'pl-num' + (nf.over ? ' over' : ''));
+        if (nf.word) { var w = el('b', 'word', nf.word); num.appendChild(w); } else { num.appendChild(el('b', '', String(nf.n))); num.appendChild(el('small', '', nf.label)); }
+        side.appendChild(num);
+      } else side.appendChild(el('span'));
       var acts = el('div', 'pl-acts');
       var e = btn('', 'ghost sm icon hov', function () { openEditor(i); }, 'edit', t('pl.row.edit')); var ins = btn('', 'ghost sm icon hov', function () { insertAt(i + 1, s.phase); }, 'plus', t('pl.row.insBelow'));
       var mo = btn('', 'ghost sm icon', null, 'more', t('pl.more')); mo.setAttribute('aria-haspopup', 'menu'); mo.setAttribute('aria-expanded', 'false');
       mo.addEventListener('click', function () { rowMenu(mo, i); });
-      var go = el('a', 'pl-btn ghost sm icon'); go.href = a.href; go.setAttribute('aria-label', t('pl.row.open')); go.title = t('pl.row.open'); go.appendChild(ic('chev', 15));
-      acts.append(e, ins, mo, go);
-      row.append(n, c, acts);
+      acts.append(e, ins, mo); side.appendChild(acts);
+      row.append(n, c, side);
       return row;
     }
     function rowMenu(anchor, i) {
@@ -541,6 +627,7 @@
       setTimeout(function () { iT.focus(); }, 20);
     }
 
+
     function renderOutline() {
       V.anchors = []; V.rowEls = []; outline.textContent = ''; V.ds = PD.dates(plan); V.here = PD.hereIndex(plan);
       var n = plan.steps.length;
@@ -555,7 +642,7 @@
         var folded = g.name && V.folded[foldedKey(g.name)];
         if (g.name) { var h = phaseHead(g, gi); outline.appendChild(h); if (folded) V.anchors.push({ from: g.from, to: g.to, el: h }); }
         if (!folded) for (var i = g.from; i <= g.to; i++) {
-          var row = stageRow(i); outline.appendChild(row); V.rowEls[i] = row; V.anchors.push({ from: i, to: i, el: row });
+          var row = stageRow(i, i === g.to); outline.appendChild(row); V.rowEls[i] = row; V.anchors.push({ from: i, to: i, el: row });
           if (V.editing === plan.steps[i].id) editorIn(row, i);
         }
         if (g.name && !folded) { var add = el('div', 'pl-add'); add.appendChild(btn(t('pl.phase.add', { name: g.name }), 'sm ghost', function () { addAfter(g.to); }, 'plus')); outline.appendChild(add); }
@@ -568,26 +655,74 @@
       outline.appendChild(el('p', 'pl-endnote', t('pl.endnote', { date: fmtD(PD.endDate(plan), true) })));
     }
 
-    /* ---------- the road follows the list ---------- */
-    function roadBottom() { return wrap.getBoundingClientRect().bottom; }
+    /* ---------- the gold knob under the road: walk the whole journey ---------- */
+    function buildScrub() {
+      var n = plan.steps.length; scrub.textContent = ''; scrub.hidden = !n; V.sc = null; if (!n) return;
+      var ends = el('div', 'ends'), eA = el('span', '', fmtD(plan.start, true)), eB = el('span', '', fmtD(PD.endDate(plan), true));
+      var trk = el('div', 'trk'), bar = el('div', 'bar'), mark = el('i', 'mark'), knob = el('i', 'knob'), tip = el('div', 'tip'), here = PD.hereIndex(plan), stops = [];
+      trk.tabIndex = 0; trk.setAttribute('role', 'slider'); trk.setAttribute('aria-label', t('pl.scrub')); trk.setAttribute('aria-valuemin', '1'); trk.setAttribute('aria-valuemax', String(n)); trk.setAttribute('aria-orientation', 'horizontal');
+      plan.steps.forEach(function (s, i) {
+        var h = hue(plan, i), col = s.status === 'done' ? 'hsl(' + h + ' 80% 62%)' : (i === here ? 'hsl(' + h + ' 96% 74%)' : 'hsl(' + h + ' 48% 30% / .85)');
+        stops.push(col + ' ' + (i / n * 100).toFixed(3) + '% ' + ((i + 1) / n * 100).toFixed(3) + '%');
+      });
+      bar.style.setProperty('--seg', 'linear-gradient(90deg,' + stops.join(',') + ')');
+      mark.style.left = (clamp((here + 0.5) / n, 0, 1) * 100) + '%';
+      trk.append(bar, mark, knob, tip);
+      var back = btn(t('pl.scrub.here'), 'sm main', function () { if (here < n) scrollRowIntoView(here, true); }); back.classList.add('back'); back.hidden = true;
+      ends.append(eA, back, eB); scrub.append(ends, trk);                          // "back to where you are" sits between the two dates, off the road
+      V.sc = { trk: trk, knob: knob, tip: tip, back: back, here: here };
+      var drag = false;
+      function posF(e) { var r = trk.getBoundingClientRect(); return clamp((e.clientX - r.left) / Math.max(1, r.width), 0, 1) * n; }
+      function move(e) { var f = posF(e); scrollForFocus(Math.min(f, n - 0.001)); showTip(f); }
+      trk.addEventListener('pointerdown', function (e) { if (e.button > 0) return; drag = true; try { trk.setPointerCapture(e.pointerId); } catch (x) {} scrub.classList.add('drag'); move(e); e.preventDefault(); });
+      trk.addEventListener('pointermove', function (e) { if (drag) move(e); });
+      var end = function () { drag = false; scrub.classList.remove('drag'); };
+      trk.addEventListener('pointerup', end); trk.addEventListener('pointercancel', end); trk.addEventListener('lostpointercapture', end);
+      trk.addEventListener('keydown', function (e) {
+        var cur = clamp(V.readIdx < 0 ? 0 : V.readIdx, 0, n - 1), to = null;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') to = cur + 1; else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') to = cur - 1;
+        else if (e.key === 'PageUp') to = cur - 5; else if (e.key === 'PageDown') to = cur + 5; else if (e.key === 'Home') to = 0; else if (e.key === 'End') to = n - 1;
+        if (to == null) return; e.preventDefault(); scrollRowIntoView(clamp(to, 0, n - 1), false);
+      });
+    }
+    function showTip(f) {
+      var sc = V.sc, n = plan.steps.length; if (!sc) return;
+      var i = clamp(Math.floor(f), 0, n - 1), s = plan.steps[i], ds = PD.dates(plan)[i];
+      sc.tip.textContent = ''; sc.tip.append(el('b', '', (i + 1) + '/' + n + '  '), document.createTextNode(s.title || t('pl.untitled')), el('small', '', fmtRange(ds.from, ds.to)));
+      var w = sc.trk.offsetWidth, tw = sc.tip.offsetWidth, x = clamp(f / n * w, tw / 2, Math.max(tw / 2, w - tw / 2));
+      sc.tip.style.left = x + 'px';
+    }
+    function setKnob(f) {
+      var sc = V.sc, n = plan.steps.length; if (!sc) return;
+      sc.knob.style.left = (clamp(f / n, 0, 1) * 100) + '%';
+      var i = clamp(Math.floor(f), 0, n - 1);
+      sc.trk.setAttribute('aria-valuenow', String(i + 1)); sc.trk.setAttribute('aria-valuetext', (i + 1) + '/' + n + ' ' + (plan.steps[i].title || t('pl.untitled')));
+      sc.back.hidden = Math.abs(f - (sc.here + 0.5)) < 1.6 || sc.here >= n;
+    }
+
+    /* ---------- the road follows the list: the stage at the reading line is lit, and the road looks where you look ---------- */
+    function contentTop(node) { return node.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop; }
     function syncFocus(jump) {
       var n = plan.steps.length; if (!n || !V.road) return;
-      var line = roadBottom() + 24, f = n, found = false;
+      var line = panel.getBoundingClientRect().top + READ, f = n, found = false;
       for (var k = 0; k < V.anchors.length; k++) {
         var a = V.anchors[k], r = a.el.getBoundingClientRect();
         if (line < r.top) { f = a.from; found = true; break; }
         if (line <= r.bottom) { f = a.from + clamp((line - r.top) / Math.max(1, r.height), 0, 0.999) * (a.to - a.from + 1); found = true; break; }
       }
       if (!found) f = n;
-      V.road.setFocus(f, jump);
+      V.f = f; V.road.setFocus(f, jump); setKnob(f);
       var fi = clamp(Math.floor(f), 0, n - 1);
-      if (fi !== V.readIdx || jump) { V.readIdx = fi; showCap(fi); [].forEach.call(outline.querySelectorAll('.pl-row.read'), function (e) { e.classList.remove('read'); }); if (V.rowEls[fi]) V.rowEls[fi].classList.add('read'); }
+      if (fi !== V.readIdx || jump) { V.readIdx = fi; [].forEach.call(outline.querySelectorAll('.pl-row.read'), function (e) { e.classList.remove('read'); }); if (V.rowEls[fi]) V.rowEls[fi].classList.add('read'); }
     }
-    function showCap(i) {
-      var s = plan.steps[i]; if (!s) { cap.hidden = true; return; }
-      cap.hidden = false; var ds = PD.dates(plan)[i];
-      capN.textContent = (i + 1) + '/' + plan.steps.length; capT.textContent = s.title || t('pl.untitled'); capD.textContent = fmtRange(ds.from, ds.to) + ' · ' + fmtDur(s.days);
-      capGo.href = '#/p/' + plan.id + '/s/' + s.id; capGo.textContent = ''; capGo.append(document.createTextNode(t('pl.cap.open')), ic('chev', 13));
+    function scrollForFocus(f) {                       // the other way round: put the reading line at position f
+      var n = plan.steps.length; f = clamp(f, 0, n);
+      if (f >= n) { panel.scrollTop = panel.scrollHeight; return; }
+      var fi = Math.floor(f), a = null, k;
+      for (k = 0; k < V.anchors.length; k++) if (fi >= V.anchors[k].from && fi <= V.anchors[k].to) { a = V.anchors[k]; break; }
+      if (!a) return;
+      var frac = (f - a.from) / (a.to - a.from + 1);
+      panel.scrollTop = contentTop(a.el) - READ + frac * a.el.offsetHeight;
     }
     function scrollRowIntoView(i, pulse, instant) {
       var row = V.rowEls[i];
@@ -596,37 +731,64 @@
         if (g && g.name && V.folded[foldedKey(g.name)]) { delete V.folded[foldedKey(g.name)]; saveFold(); renderOutline(); syncFocus(true); row = V.rowEls[i]; }
         if (!row) return;
       }
-      var y = row.getBoundingClientRect().top + window.scrollY - wrap.offsetHeight - 22;
-      window.scrollTo({ top: Math.max(0, y), behavior: (reduced || instant) ? 'auto' : 'smooth' });
+      panel.scrollTo({ top: Math.max(0, contentTop(row) - 52), behavior: (reduced || instant) ? 'auto' : 'smooth' });
       if (pulse) { setTimeout(function () { row.classList.remove('pulse'); void row.offsetWidth; row.classList.add('pulse'); }, reduced ? 0 : 350); }
     }
     function onScroll() { if (V.raf) return; V.raf = requestAnimationFrame(function () { V.raf = 0; syncFocus(false); }); }
-    function onResize() { if (V.road) V.road.resize(); syncFocus(true); }
-    window.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onResize); currentRefresh = refreshAll;
+    function onResize() { applyRoadH(); if (V.road) V.road.resize(); syncFocus(true); }
+    panel.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onResize); currentRefresh = refreshAll;
 
-    function refreshAll(keepNear) {
-      closeMenu(); buildHead(); renderOutline();
-      if (V.road) { V.road.update(roadModel(plan)); }
+    /* ---------- the handle between road and list (phones): drag it, tap it, or use the arrow keys ---------- */
+    var hd = null;
+    function saveRH() { var o = uiGet(); o['#rh'] = V.rh; uiSet(o); }
+    handle.addEventListener('pointerdown', function (e) { hd = { y: e.clientY, h: scene.getBoundingClientRect().height, moved: false }; try { handle.setPointerCapture(e.pointerId); } catch (x) {} handle.classList.add('drag'); e.preventDefault(); });
+    handle.addEventListener('pointermove', function (e) {
+      if (!hd) return; var dy = e.clientY - hd.y; if (Math.abs(dy) > 4) hd.moved = true;
+      if (hd.moved) main.style.setProperty('--roadh', Math.round(clamp(hd.h + dy, window.innerHeight * 0.2, window.innerHeight * 0.72)) + 'px');
+    });
+    var endHandle = function () {
+      if (!hd) return; var moved = hd.moved; hd = null; handle.classList.remove('drag');
+      if (moved) { var cur = scene.getBoundingClientRect().height / window.innerHeight, best = 0; ROADH.forEach(function (v, k) { if (Math.abs(v - cur) < Math.abs(ROADH[best] - cur)) best = k; }); V.rh = best; }
+      else V.rh = (V.rh + 1) % 3;
+      saveRH(); applyRoadH();
+    };
+    handle.addEventListener('pointerup', endHandle); handle.addEventListener('pointercancel', function () { if (hd) { hd = null; handle.classList.remove('drag'); applyRoadH(); } });
+    handle.addEventListener('keydown', function (e) { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); V.rh = clamp(V.rh + (e.key === 'ArrowDown' ? 1 : -1), 0, 2); saveRH(); applyRoadH(); } });
+
+    function refreshAll() {
+      closeMenu(); buildHead(); renderOutline(); var had = !scrub.hidden; buildScrub();
+      if (V.road) { V.road.update(roadModel(plan)); if (had === scrub.hidden) V.road.resize(); }
       syncFocus(true);
     }
+    function inset() {                                 // what the road must leave free: the panel beside it (wide screens) and the knob under it
+      var sr = scene.getBoundingClientRect(), pr = panel.getBoundingClientRect(), sc = scrub.hidden ? null : scrub.getBoundingClientRect();
+      return { r: pr.left > sr.left + sr.width * 0.4 ? Math.max(0, sr.right - pr.left + 20) : 0, b: sc ? Math.max(0, sr.bottom - sc.top + 6) : 16 };
+    }
 
-    buildHead(); renderOutline();
+    if (plan.steps.length === 1 && !plan.steps[0].title) { V.editing = plan.steps[0].id; V.newId = plan.steps[0].id; }        // a blank plan: name the first stage right away
+    buildHead(); renderOutline(); buildScrub();
     V.road = PlanRoad.create(roadEl, {
+      inset: inset,
       onPick: function (i) { scrollRowIntoView(i, true); },
-      onDrag: function (d) { var n = plan.steps.length || 1; window.scrollBy(0, d * outline.offsetHeight / n); }
+      onDrag: function (d) { var n = plan.steps.length || 1; panel.scrollTop += d * outline.offsetHeight / n; }
     });
     V.road.update(roadModel(plan));
-    var back = scrollMemo[plan.id]; if (back != null) { window.scrollTo(0, back); }
+    var back = scrollMemo[plan.id], target = -1;
+    if (cameFrom && cameFrom.plan === plan.id) { target = PD.indexOf(plan, cameFrom.id); cameFrom = null; }
     requestAnimationFrame(function () {
-      V.road.resize(); syncFocus(true);
-      var hi = PD.hereIndex(plan);                                                  // open at where you are, not at the very first stage
-      if (back == null && hi > 0 && hi < plan.steps.length) { scrollRowIntoView(hi, false, true); syncFocus(true); }
+      V.road.resize();
+      if (back != null) panel.scrollTop = back;
+      var hi = PD.hereIndex(plan);
+      if (target >= 0 && V.rowEls[target]) {                                          // coming back from a stage: it is still in view, lit
+        var rr = V.rowEls[target].getBoundingClientRect(), pr = panel.getBoundingClientRect();
+        if (back == null || rr.bottom < pr.top + 20 || rr.top > pr.bottom - 20) scrollRowIntoView(target, false, true);
+      } else if (back == null && hi > 0 && hi < plan.steps.length) scrollRowIntoView(hi, false, true);                // open at where you are, not at the very first stage
+      syncFocus(true);
     });
-    if (!plan.steps.length) showCap(-1);
 
     return function () {
-      scrollMemo[plan.id] = window.scrollY; currentRefresh = null;
-      window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize);
+      scrollMemo[plan.id] = panel.scrollTop; currentRefresh = null;
+      panel.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize);
       if (V.raf) cancelAnimationFrame(V.raf); if (V.ctl) V.ctl.abort();
       if (V.road) V.road.destroy();
       PD.save();
@@ -686,6 +848,6 @@
   }
 
   global.PlanUI = { el: el, ic: ic, btn: btn, clamp: clamp, debounce: debounce, autosize: autosize, fmtD: fmtD, fmtRange: fmtRange, fmtDur: fmtDur, fmtMin: fmtMin, hue: hue, toast: toast, withUndo: withUndo, menu: menu, closeMenu: closeMenu,
-    openDialog: openDialog, closeDialog: closeDialog, askText: askText, aiReady: aiReady, aiFail: aiFail, setCrumb: setCrumb, roadModel: roadModel, main: main, openEditPlan: openEditPlan, reduced: reduced, goTo: goTo, refresh: function () { if (currentRefresh) currentRefresh(); } };
+    openDialog: openDialog, closeDialog: closeDialog, askText: askText, aiReady: aiReady, aiFail: aiFail, setCrumb: setCrumb, roadModel: roadModel, main: main, openEditPlan: openEditPlan, reduced: reduced, goTo: goTo, slab: slab, numFor: numFor, refresh: function () { if (currentRefresh) currentRefresh(); } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', route); else route();     // (plan-stage.js is loaded after this file, so wait for every script)
 })(window);

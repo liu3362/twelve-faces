@@ -1,5 +1,5 @@
 /* countdown.js — the big colour-block "N days to go" cards used by the future road and the universe page.
- * Countdown.pill({icon, label, sub, days, date, hue, state, fill}) -> element
+ * Countdown.pill({icon, label, sub, days, date, hue, state, fill, word}) -> element   (word: a short text shown big instead of the number of days, e.g. "Done")
  * Countdown.ladder([pill options...]) -> a column of cards joined by a centre line (first = top)
  * Countdown.journeyHue(goalHue, k, count) -> the card colour k steps along a journey: it starts at the goal's own colour and warms toward a celebratory red-gold at the end */
 (function (global) {
@@ -47,7 +47,7 @@
     if (RO) RO.observe(d);
     d.style.setProperty('--ch', o.hue == null ? 215 : o.hue);
     if (o.fill != null) d.style.setProperty('--cf', Math.round(Math.max(0, Math.min(1, o.fill)) * 100) + '%');
-    var w = words(o.days);
+    var w = o.word ? { today: o.word } : words(o.days);
     d.setAttribute('role', 'group');
     d.setAttribute('aria-label', o.label + ', ' + (w.today || (w.pre + ' ' + w.num + ' ' + w.unit)) + (o.date ? ', ' + o.date : ''));
     var l = el('div', 'cd-l');

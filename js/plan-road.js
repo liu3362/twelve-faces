@@ -2,18 +2,17 @@
  * A road in perspective (wide at the bottom, narrow at the top) carries EVERY stage of a plan, so dozens of stages fit and none is lost.
  * Where you are looking (the "reading line", a position f along the stages: 3.5 = halfway through the fourth) is magnified: the stages just ahead of it are big
  * enough to read, those far away shrink toward the horizon, and the ones already behind it are squeezed into a thin trail at the bottom. Move f and the road
- * re-focuses (a fisheye over time). The goal floats at the horizon as a dodecahedron that lights up with progress.
+ * re-focuses (a fisheye over time). The goal floats at the horizon as a dodecahedron that lights up with progress. It is always a night scene: the stages you have done are lit,
+ * the one you are in has a gold coin on it, and the stretch you are looking at has a gold rim.
  *
- *   var road = PlanRoad.create(hostElement, { mini: false, onPick: function (i) {}, onDrag: function (dyStages) {} })
+ *   var road = PlanRoad.create(hostElement, { mini: false, onPick: function (i) {}, onDrag: function (dyStages) {}, inset: function () { return { r: px kept free on the right, b: px kept free at the bottom }; } })
  *   road.update({ stages: [{title, status, fill, from, to}], phases: [{name, from, to}], marks: [{x, text, major}], here: index, hue, seed, goal: {lit, text} })
  *   road.setFocus(f, jump)   road.resize()   road.destroy()   road.indexAt(clientY) -> stage index under that height (or -1)
- * Colours and light/dark come from css/plan.css (classes pr-*). */
+ * Colours come from css/plan.css (classes pr-*). */
 (function (global) {
   'use strict';
   var NS = 'http://www.w3.org/2000/svg';
   var reduced = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  var darkMq = global.matchMedia ? global.matchMedia('(prefers-color-scheme: dark)') : null;
-  function isLight() { var th = document.documentElement.getAttribute('data-theme'); return th === 'light' || (th !== 'dark' && !(darkMq && darkMq.matches)); }
   function sv(tag, attrs, parent) {
     var e = document.createElementNS(NS, tag);
     for (var k in attrs) e.setAttribute(k, attrs[k]);
@@ -44,10 +43,11 @@
     host.classList.add('pr');
     var svg = sv('svg', { 'class': 'pr-svg' }); host.appendChild(svg);
     var gBack = sv('g', { 'class': 'pr-back' }, svg), gTiles = sv('g', { 'class': 'pr-tiles' }, svg), gMargin = sv('g', { 'class': 'pr-margin' }, svg), gMark = sv('g', { 'class': 'pr-mark' }, svg);
-    var dieCv = null, dieCtx = null;
-    if (!mini) { dieCv = document.createElement('canvas'); dieCv.className = 'pr-die'; dieCv.setAttribute('aria-hidden', 'true'); host.appendChild(dieCv); dieCtx = dieCv.getContext('2d'); }
+    var gFog = sv('g', { 'class': 'pr-fog' }, svg); svg.insertBefore(gFog, gMargin);
+    var dieCv = document.createElement('canvas'); dieCv.className = 'pr-die'; dieCv.setAttribute('aria-hidden', 'true'); host.appendChild(dieCv);
+    var dieCtx = dieCv.getContext('2d');
 
-    var W = 0, H = 0, cx = 0, yTop = 0, yBot = 0, R = 0, hwB = 0, hwT = 0, dieR = 0, dieY = 0, dpr = 1;
+    var W = 0, H = 0, Wv = 0, cx = 0, yTop = 0, yBot = 0, R = 0, hwB = 0, hwT = 0, dieR = 0, dpr = 1, padR = 0, padB = 0;
     var model = { stages: [], phases: [], marks: [], here: 0, hue: 215, seed: 'x', goal: { lit: 0, text: '' } };
     var tiles = [], cur = 0, tgt = 0, raf = 0, dieRaf = 0, tPrev = 0, dead = false, drawn = false;
     var famBody = 'system-ui, sans-serif', famHead = famBody;
@@ -61,45 +61,58 @@
     function layout() {
       measure();
       if (W < 20 || H < 20) return false;
-      var phone = W < 520;
-      cx = W / 2;
-      dieR = mini ? 0 : clamp(H * 0.075, 15, 27);
-      yTop = mini ? Math.max(5, H * 0.06) : Math.round(dieR * 2.1 + 14);
-      yBot = H - (mini ? 3 : 9);
-      R = yBot - yTop;
-      hwB = mini ? W * 0.46 : Math.min(W * (phone ? 0.475 : 0.42), 400);
-      hwT = mini ? W * 0.07 : clamp(W * 0.05, 14, 36);
+      var ins = opt.inset ? opt.inset() : null;
+      padR = ins && ins.r > 0 ? Math.min(ins.r, W - 160) : 0; padB = ins && ins.b > 0 ? ins.b : 0;
+      Wv = W - padR;                                                    // the part of the scene the road itself lives in (the rest lies under a panel)
+      var phone = Wv < 520;
+      cx = Wv / 2;
+      dieR = mini ? clamp(H * 0.12, 8, 15) : clamp(H * (phone ? 0.065 : 0.06), 15, 42);
+      yTop = mini ? Math.max(5, H * 0.06) : Math.round(Math.max(dieR * 2.1 + 14, 54 + dieR * 1.25));
+      yBot = H - padB - (mini ? 3 : 9);
+      R = Math.max(40, yBot - yTop);
+      hwB = mini ? Wv * 0.46 : Math.min(Wv * (phone ? 0.475 : 0.42), 420);
+      hwT = mini ? Wv * 0.07 : clamp(Wv * 0.05, 14, 38);
       svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-      if (dieCv) { dpr = Math.min(2, global.devicePixelRatio || 1); dieCv.width = Math.round(W * dpr); dieCv.height = Math.round((yTop + dieR * 1.2) * dpr); dieCv.style.height = Math.round(yTop + dieR * 1.2) + 'px'; }
+      dpr = Math.min(2, global.devicePixelRatio || 1); var dh = Math.round(yTop + dieR * 1.3); dieCv.width = Math.round(W * dpr); dieCv.height = Math.round(dh * dpr); dieCv.style.height = dh + 'px';
       backdrop();
       return true;
     }
     function hw(y) { return hwT + (hwB - hwT) * clamp((y - yTop) / R, 0, 1); }
 
     /* sky, stars, the ground and the lines running to the horizon; they only change with the size */
+    function grad(defs, id, kind, attrs, stops) {
+      var g = sv(kind, attrs, defs); g.setAttribute('id', id + uidn);
+      stops.forEach(function (st) { sv('stop', { offset: st[0], 'class': st[1] }, g); });
+      return 'url(#' + id + uidn + ')';
+    }
     function backdrop() {
-      gBack.textContent = '';
+      gBack.textContent = ''; gFog.textContent = '';
       var defs = sv('defs', {}, gBack);
-      var g1 = sv('linearGradient', { id: 'prSky' + uidn, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-      sv('stop', { offset: '0', 'class': 'pr-sky0' }, g1); sv('stop', { offset: '1', 'class': 'pr-sky1' }, g1);
-      var g2 = sv('linearGradient', { id: 'prGnd' + uidn, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-      sv('stop', { offset: '0', 'class': 'pr-gnd0' }, g2); sv('stop', { offset: '1', 'class': 'pr-gnd1' }, g2);
-      var g3 = sv('radialGradient', { id: 'prGlow' + uidn }, defs);
-      sv('stop', { offset: '0', 'class': 'pr-glow0' }, g3); sv('stop', { offset: '1', 'class': 'pr-glow1' }, g3);
-      sv('rect', { x: 0, y: 0, width: W, height: yTop + 1, fill: 'url(#prSky' + uidn + ')' }, gBack);
-      sv('rect', { x: 0, y: yTop, width: W, height: H - yTop, fill: 'url(#prGnd' + uidn + ')' }, gBack);
+      var sky = grad(defs, 'prSky', 'linearGradient', { x1: 0, y1: 0, x2: 0, y2: 1 }, [['0', 'pr-sky0'], ['1', 'pr-sky1']]);
+      var gnd = grad(defs, 'prGnd', 'linearGradient', { x1: 0, y1: 0, x2: 0, y2: 1 }, [['0', 'pr-gnd0'], ['1', 'pr-gnd1']]);
+      var glow = grad(defs, 'prGlow', 'radialGradient', {}, [['0', 'pr-glow0'], ['1', 'pr-glow1']]);
+      var bloom = grad(defs, 'prBloom', 'radialGradient', {}, [['0', 'pr-bloom0'], ['1', 'pr-bloom1']]);
+      var beam = grad(defs, 'prBeam', 'linearGradient', { x1: 0, y1: 0, x2: 0, y2: 1 }, [['0', 'pr-beam0'], ['1', 'pr-beam1']]);
+      var coin = sv('radialGradient', { id: 'prCoinG', cx: '35%', cy: '30%', r: '70%' }, defs);
+      [['0', '#fff7cf'], ['0.58', '#e9bd4f'], ['1', '#b98a22']].forEach(function (st) { sv('stop', { offset: st[0], 'stop-color': st[1] }, coin); });
+      sv('rect', { x: 0, y: 0, width: W, height: yTop + 1, fill: sky }, gBack);
+      sv('rect', { x: 0, y: yTop, width: W, height: H - yTop, fill: gnd }, gBack);
       if (!mini) {
-        var rnd = rng(String(model.seed)), n = Math.round(W / 26);
-        for (var i = 0; i < n; i++) sv('circle', { cx: (rnd() * W).toFixed(1), cy: (rnd() * (yTop - 4)).toFixed(1), r: (0.5 + rnd() * 1.1).toFixed(2), 'class': 'pr-star', style: 'animation-delay:' + (rnd() * 4).toFixed(2) + 's' }, gBack);
-        sv('circle', { cx: cx, cy: yTop - dieR * 0.5, r: dieR * 3.2, fill: 'url(#prGlow' + uidn + ')' }, gBack);
-      }
+        var rnd = rng(String(model.seed)), n = Math.round(W / 22);
+        for (var i = 0; i < n; i++) sv('circle', { cx: (rnd() * W).toFixed(1), cy: (rnd() * (yTop - 4)).toFixed(1), r: (0.5 + rnd() * 1.2).toFixed(2), 'class': 'pr-star', style: 'animation-delay:' + (rnd() * 4).toFixed(2) + 's' }, gBack);
+        sv('ellipse', { cx: cx, cy: yTop, rx: Wv * 0.72, ry: Math.max(60, yTop * 0.9), fill: bloom }, gBack);
+        sv('circle', { cx: cx, cy: yTop - dieR * 0.5, r: dieR * 3.4, fill: glow }, gBack);
+        for (var k = 1; k <= 9; k++) { var yy = yTop + (H - yTop) * Math.pow(k / 9, 2.2); sv('line', { x1: 0, y1: yy.toFixed(1), x2: W, y2: yy.toFixed(1), 'class': 'pr-grid' }, gBack); }
+      } else sv('ellipse', { cx: cx, cy: yTop, rx: Wv * 0.5, ry: Math.max(14, H * 0.2), fill: bloom }, gBack);
       for (var j = -6; j <= 6; j++) {                      // lines running off to the horizon, to give the ground some depth
         if (Math.abs(j) < 2 && mini) continue;
-        var x2 = cx + j * (W * 0.22);
+        var x2 = cx + j * (Wv * 0.22);
         sv('line', { x1: cx + j * hwT * 0.55, y1: yTop, x2: x2, y2: H, 'class': 'pr-ray' }, gBack);
       }
       sv('line', { x1: 0, y1: yTop, x2: W, y2: yTop, 'class': 'pr-horizon' }, gBack);
       sv('polygon', { points: (cx - hwT) + ',' + yTop + ' ' + (cx + hwT) + ',' + yTop + ' ' + (cx + hwB) + ',' + yBot + ' ' + (cx - hwB) + ',' + yBot, 'class': 'pr-bed' }, gBack);
+      /* the light of the goal falls down the road: far stages are hazed, near ones are clear */
+      sv('polygon', { points: (cx - Math.max(8, dieR * 0.5)) + ',' + yTop + ' ' + (cx + Math.max(8, dieR * 0.5)) + ',' + yTop + ' ' + (cx + hwB) + ',' + yBot + ' ' + (cx - hwB) + ',' + yBot, fill: beam, 'pointer-events': 'none' }, gFog);
     }
     var uidn = Math.random().toString(36).slice(2, 7);
 
@@ -132,10 +145,10 @@
     function build() {
       gTiles.textContent = ''; tiles = [];
       model.stages.forEach(function (s, k) {
-        var g = sv('g', { 'class': 'pr-tg' }, gTiles), p = sv('polygon', { 'class': 'pr-t' }, g), ti = sv('title', {}, p), tx = sv('text', { 'class': 'pr-tx' }, g);
+        var g = sv('g', { 'class': 'pr-tg' }, gTiles), p = sv('polygon', { 'class': 'pr-t' }, g), ti = sv('title', {}, p), sh = sv('polygon', { 'class': 'pr-sh' }, g), tx = sv('text', { 'class': 'pr-tx' }, g);
         ti.textContent = (k + 1) + '. ' + s.title;
         tx.setAttribute('text-anchor', 'middle');
-        tiles.push({ g: g, p: p, tx: tx, cls: '', txt: null, on: true });
+        tiles.push({ g: g, p: p, sh: sh, shOn: true, tx: tx, cls: '', txt: null, on: true });
       });
       drawn = false;
     }
@@ -148,13 +161,18 @@
       if (!N) return;
       var m = mapFor(N, f), ys = new Array(N + 1), k;
       for (k = 0; k <= N; k++) ys[k] = yBot - m(k);
-      var fsMax = mini ? 0 : 14;
+      var fsMax = mini ? 0 : (H > 560 ? 15.5 : 14);
       for (k = 0; k < N; k++) {
         var tl = tiles[k], st = model.stages[k], y0 = ys[k], y1 = ys[k + 1], h = y0 - y1;
         if (h < 0.7) { if (tl.on) { tl.g.style.display = 'none'; tl.on = false; } continue; }
         if (!tl.on) { tl.g.style.display = ''; tl.on = true; }
         var gap = h > 12 ? 1.1 : h > 5 ? 0.7 : 0.35, a = y0 - gap / 2, b = y1 + gap / 2, wa = hw(a), wb = hw(b);
         tl.p.setAttribute('points', (cx - wa).toFixed(1) + ',' + a.toFixed(1) + ' ' + (cx + wa).toFixed(1) + ',' + a.toFixed(1) + ' ' + (cx + wb).toFixed(1) + ',' + b.toFixed(1) + ' ' + (cx - wb).toFixed(1) + ',' + b.toFixed(1));
+        if (h > 9 && !mini) {                                                                   // a soft sheen across the upper part of a tile that is big enough to show it
+          var ms = b + (a - b) * 0.46, wm = hw(ms);
+          tl.sh.setAttribute('points', (cx - wb).toFixed(1) + ',' + b.toFixed(1) + ' ' + (cx + wb).toFixed(1) + ',' + b.toFixed(1) + ' ' + (cx + wm).toFixed(1) + ',' + ms.toFixed(1) + ' ' + (cx - wm).toFixed(1) + ',' + ms.toFixed(1));
+          if (!tl.shOn) { tl.sh.style.display = ''; tl.shOn = true; }
+        } else if (tl.shOn) { tl.sh.style.display = 'none'; tl.shOn = false; }
         var cls = 'pr-tg ' + st.status + (k === hr ? ' here' : '') + (k === fi && !mini ? ' foc' : '') + (k < f - 1 ? ' past' : '');
         if (cls !== tl.cls) { tl.g.setAttribute('class', cls); tl.cls = cls; tl.p.style.setProperty('--th', st.hue); }
         else if (tl.th !== st.hue) { tl.p.style.setProperty('--th', st.hue); }
@@ -185,18 +203,18 @@
         if (mk.x <= 0.02 || mk.x >= N) return;
         var y = yBot - m(mk.x), x = cx + hw(y);
         if (y < yTop + 6 || lastY - y < 13) return;
-        var room = W - (x + 18) - 4; if (room < 22) return;
+        var room = Wv - (x + 18) - 4; if (room < 22) return;
         lastY = y;
         sv('line', { x1: x + 3, y1: y, x2: x + 15, y2: y, 'class': 'pr-tick' + (mk.major ? ' major' : '') }, gMargin);
         sv('text', { x: x + 18, y: y + 4, 'class': 'pr-tm' + (mk.major ? ' major' : ''), 'font-size': mk.major ? 11.5 : 10.5 }, gMargin).textContent = mk.text;
       });
       /* the goal's date, beside the die */
       if (model.goal && (model.goal.text || model.goal.sub)) {
-        var gx = cx + dieR * 1.35 + 8, groom = W - gx - 10;
+        var gx = cx + dieR * 1.35 + 8, groom = Wv - gx - 10;
         if (groom > 44) {
-          var g1 = fitText(model.goal.text || '', groom, 12.5, 700, famHead), g2 = fitText(model.goal.sub || '', groom, 11.5, 600, famBody);
-          if (g1) sv('text', { x: gx, y: yTop - 18, 'class': 'pr-gt', 'font-size': 12.5 }, gMargin).textContent = g1;
-          if (g2) sv('text', { x: gx, y: yTop - 5, 'class': 'pr-gs', 'font-size': 11.5 }, gMargin).textContent = g2;
+          var g1 = fitText(model.goal.text || '', groom, 13.5, 800, famHead), g2 = fitText(model.goal.sub || '', groom, 12, 600, famBody);
+          if (g1) sv('text', { x: gx, y: yTop - 20, 'class': 'pr-gt', 'font-size': 13.5 }, gMargin).textContent = g1;
+          if (g2) sv('text', { x: gx, y: yTop - 6, 'class': 'pr-gs', 'font-size': 12 }, gMargin).textContent = g2;
         }
       }
       markHere(ys);
@@ -211,9 +229,10 @@
     function markHere(ys) {
       var N = model.stages.length, hr = model.here;
       if (hr >= N || mini && hr < 0) return;
-      var y = (ys[hr] + ys[hr + 1]) / 2, x = mini ? cx : cx - hw(y) + 15;       // on the full road it sits at the left end of the stage, out of the way of its name
-      sv('circle', { cx: x, cy: y, r: mini ? 3 : 7, 'class': 'pr-ping' }, gMark);
-      sv('circle', { cx: x, cy: y, r: mini ? 2.2 : 4.4, 'class': 'pr-pt' }, gMark);
+      var y = (ys[hr] + ys[hr + 1]) / 2, x = mini ? cx : cx - hw(y) + 20, r = mini ? 3.4 : 10;       // on the full road it sits at the left end of the stage, out of the way of its name
+      sv('circle', { cx: x, cy: y, r: r + 2, 'class': 'pr-ping' }, gMark);
+      sv('circle', { cx: x, cy: y, r: r, 'class': 'pr-coin' }, gMark);
+      if (!mini) sv('rect', { x: x - 3, y: y - 3, width: 6, height: 6, transform: 'rotate(45 ' + x + ' ' + y + ')', rx: 1, 'class': 'pr-coinj' }, gMark);
     }
 
     /* ---------- moving the reading line ---------- */
@@ -235,11 +254,10 @@
     /* ---------- the goal at the horizon ---------- */
     function paintDie(tm) {
       if (!dieCtx || !global.Dodeca || !dieCv.width) return;
-      var light = isLight();
       dieCtx.setTransform(dpr, 0, 0, dpr, 0, 0); dieCtx.clearRect(0, 0, W, dieCv.height / dpr);
-      var bob = reduced ? 0 : Math.sin(tm / 900) * 2.2;
-      Dodeca.paint(dieCtx, { x: cx, y: yTop - dieR * 0.15 + bob, r: dieR, spin: reduced ? 0.5 : tm * 0.00032, style: Dodeca.styleOf('p:' + model.seed), hl: 0, lit: Math.round(clamp(model.goal.lit, 0, 1) * 12), ghost: model.stages.length ? 0 : 1,
-        hue: model.hue, sat: light ? 78 : 75, lum: light ? 62 : 66, light: light, alpha: 1, labels: null, font: famBody, labelOut: null });
+      var bob = reduced || mini ? 0 : Math.sin(tm / 900) * 2.2;
+      Dodeca.paint(dieCtx, { x: cx, y: yTop - dieR * 0.15 + bob, r: dieR, spin: reduced || mini ? 0.5 : tm * 0.00032, style: Dodeca.styleOf('p:' + model.seed), hl: 0, lit: Math.round(clamp(model.goal.lit, 0, 1) * 12), ghost: model.stages.length ? 0 : 1,
+        hue: model.hue, sat: 82, lum: 66, light: false, alpha: 1, labels: null, font: famBody, labelOut: null });
     }
     function dieLoop(tm) {
       dieRaf = 0; if (dead || mini) return;
@@ -260,18 +278,18 @@
       if (R) draw();
       svg.setAttribute('aria-label', t('pl.road.aria', { n: model.stages.length, here: Math.min(model.here + 1, model.stages.length) }));
       svg.setAttribute('role', 'img');
-      if (!reduced && !mini && !dieRaf) dieRaf = requestAnimationFrame(dieLoop); else if (dieCv) paintDie(0);
+      if (!reduced && !mini && !dieRaf) dieRaf = requestAnimationFrame(dieLoop); else paintDie(0);
     }
-    function resize() { if (layout()) { build(); drawn = false; draw(); if (dieCv && (reduced || mini)) paintDie(0); } }
+    function resize() { if (layout()) { if (tiles.length !== model.stages.length) build(); drawn = false; draw(); if (reduced || mini) paintDie(0); } }
 
-    /* ---------- the mouse: a click picks a stage; dragging the road scrolls along it (touch scrolls the page by itself) ---------- */
+    /* ---------- a tap or click picks a stage; dragging the road (mouse, finger or pen) walks along it ---------- */
     if (!mini) {
       svg.addEventListener('click', function (e) {
         if (drag && drag.moved) return;
         var i = indexAt(e.clientY); if (i >= 0 && opt.onPick) opt.onPick(i);
       });
       svg.addEventListener('pointerdown', function (e) {
-        if (e.pointerType !== 'mouse' || e.button !== 0) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
         drag = { y: e.clientY, moved: false, id: e.pointerId };
       });
       svg.addEventListener('pointermove', function (e) {
@@ -280,12 +298,12 @@
         if (!drag.moved && Math.abs(dy) < 5) return;
         if (!drag.moved) { drag.moved = true; try { svg.setPointerCapture(e.pointerId); } catch (x) {} svg.classList.add('drag'); }
         drag.y = e.clientY;
-        if (opt.onDrag) opt.onDrag(-dy * model.stages.length / Math.max(1, R));    // dragging up goes on toward the goal
+        if (opt.onDrag) opt.onDrag(-dy * model.stages.length / Math.max(1, R) * (e.pointerType === 'mouse' ? 1 : 1.6));    // dragging up goes on toward the goal
       });
       var end = function (e) { if (!drag) return; var moved = drag.moved; svg.classList.remove('drag'); setTimeout(function () { drag = null; }, 0); if (moved) e.preventDefault(); };
       svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
     }
-    if (typeof ResizeObserver === 'function') { ro = new ResizeObserver(function () { if (dead) return; var r = host.getBoundingClientRect(); if (Math.round(r.width) !== W || Math.round(r.height) !== H) resize(); }); ro.observe(host); }
+    if (typeof ResizeObserver === 'function') { var roRaf = 0; ro = new ResizeObserver(function () { if (dead || roRaf) return; roRaf = requestAnimationFrame(function () { roRaf = 0; if (dead) return; var r = host.getBoundingClientRect(); if (Math.round(r.width) !== W || Math.round(r.height) !== H) resize(); }); }); ro.observe(host); }
     if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', function () { if (!dead) { measure(); drawn = false; draw(); } });
     layout();
 
