@@ -381,8 +381,15 @@
   .fu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 6px; flex: none; }
   .fu-head h2 { margin: 0; font: 700 18px/1.25 var(--f-sans); }
   .fu-hb { display: flex; gap: 6px; flex: none; }
+  .fu-plan { text-decoration: none; }
+  .fu-plan::before { content: ""; display: inline-block; width: 11px; height: 9px; margin-right: 6px; background: currentColor; opacity: .75; clip-path: polygon(32% 0, 68% 0, 100% 100%, 0 100%); vertical-align: -.5px; }
   .fu-uni { text-decoration: none; }
   .fu-uni::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #cfd8ff, #5a6fe0 55%, #1b2260); box-shadow: 0 0 0 1.5px hsl(228 50% 30% / .35); vertical-align: -.5px; }
+  @media (max-width: 520px) {                                   /* three buttons would squeeze the title: the universe link keeps only its little ball (its name is still there for screen readers and as a tooltip) */
+    .fu-hb { gap: 4px; }
+    .fu-uni.gear { font-size: 0; padding: 7px 11px; }
+    .fu-uni::before { margin-right: 0; width: 13px; height: 13px; vertical-align: -2px; }
+  }
   .fu-head p { margin: 2px 0 0; font-size: 13px; color: var(--accent); }
   .fu-tabs { display: flex; gap: 6px; padding: 4px 16px 10px; overflow-x: auto; flex: none; }
   .fu-chip { flex: none; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; appearance: none; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 999px; padding: 6px 12px; font: 600 13px/1.2 var(--f-body); cursor: pointer; }
