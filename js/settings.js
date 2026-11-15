@@ -188,6 +188,17 @@
     });
   }
 
-  function open() { renderLangs(); renderFeedback(); pick = PROFILES.currentId(); draft = null; renderWho(); dirty(); render(); if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
+  // the three-way background setting: follow the device, always light, always dark (js/theme.js does the work)
+  function renderTheme() {
+    var box = document.getElementById('themePick'); if (!box || !window.Theme) return; box.textContent = '';
+    [['system', 'theme.system'], ['light', 'theme.light'], ['dark', 'theme.dark']].forEach(function (x) {
+      var b = el('button', 'lang-opt', t(x[1])); b.type = 'button';
+      b.setAttribute('aria-pressed', x[0] === Theme.get() ? 'true' : 'false');
+      b.addEventListener('click', function () { Theme.set(x[0]); renderTheme(); });
+      box.appendChild(b);
+    });
+  }
+
+  function open() { renderLangs(); renderTheme(); renderFeedback(); pick = PROFILES.currentId(); draft = null; renderWho(); dirty(); render(); if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
   window.openSettings = open;
 })();

@@ -9,7 +9,7 @@
 (function (global) {
   'use strict';
   var KEY = 'tf-plans', KINDS = ['book', 'video', 'course', 'web', 'tool', 'other'], STATUS = ['todo', 'doing', 'done'], VERDICTS = ['right', 'partly', 'wrong'];
-  var HUES = [215, 155, 5, 35, 275, 185];
+  var HUES = [185, 215, 155, 35, 5, 275];
   var GM = global.GoalMath, seq = 0;
 
   /* ---------- small helpers ---------- */
@@ -45,7 +45,7 @@
     p = p || {};
     return {
       id: p.id ? String(p.id).slice(0, 40) : uid('p'), title: line(p.title, 100), start: isoOk(p.start) ? p.start : today(), target: isoOk(p.target) ? p.target : '',
-      hours: int(p.hours, 1, 80, 6), level: str(p.level, 400), note: str(p.note, 800), hue: int(p.hue, 0, 359, 215), created: isoOk(p.created) ? p.created : today(),
+      hours: int(p.hours, 1, 80, 6), level: str(p.level, 400), note: str(p.note, 800), hue: int(p.hue, 0, 359, 185), created: isoOk(p.created) ? p.created : today(),
       face: line(p.face, 60), summary: str(p.summary, 400), ex: !!p.ex, steps: arr(p.steps).slice(0, 400).map(cleanStage)
     };
   }
@@ -303,7 +303,7 @@
   ];
   function example(start) {
     var steps = EX.map(function (e, i) { return { phase: t('pl.ex.p' + e[0]), days: e[1], title: t('pl.ex.s' + (i + 1)), goal: t('pl.ex.g' + (i + 1)) }; });
-    var p = cleanPlan({ title: t('pl.ex.title'), start: start || today(), hours: 8, level: t('pl.ex.level'), hue: 215, summary: t('pl.ex.summary'), ex: true, steps: steps });
+    var p = cleanPlan({ title: t('pl.ex.title'), start: start || today(), hours: 8, level: t('pl.ex.level'), hue: 185, summary: t('pl.ex.summary'), ex: true, steps: steps });
     p.target = endDate(p);
     // the first stages are already under way, so the example shows a road with something behind it
     for (var i = 0; i < 3; i++) { p.steps[i].status = 'done'; p.steps[i].doneOn = today(); }

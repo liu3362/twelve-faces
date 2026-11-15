@@ -2,7 +2,7 @@
  * A road in perspective (wide at the bottom, narrow at the top) carries EVERY stage of a plan, so dozens of stages fit and none is lost.
  * Where you are looking (the "reading line", a position f along the stages: 3.5 = halfway through the fourth) is magnified: the stages just ahead of it are big
  * enough to read, those far away shrink toward the horizon, and the ones already behind it are squeezed into a thin trail at the bottom. Move f and the road
- * re-focuses (a fisheye over time). The goal floats at the horizon as a dodecahedron that lights up with progress. It is always a night scene: the stages you have done are lit,
+ * re-focuses (a fisheye over time). The goal floats at the horizon as a dodecahedron that lights up with progress. By day it is a pale haze, by night a starry sky (css/plan.css): the stages you have done are lit,
  * the one you are in has a gold coin on it, and the stretch you are looking at has a gold rim.
  *
  *   var road = PlanRoad.create(hostElement, { mini: false, onPick: function (i) {}, onDrag: function (dyStages) {}, inset: function () { return { r: px kept free on the right, b: px kept free at the bottom }; } })
@@ -11,6 +11,7 @@
  * Colours come from css/plan.css (classes pr-*). */
 (function (global) {
   'use strict';
+  function setHue(node, h) { if (global.PlanColor) global.PlanColor.setHue(node, h); else node.style.setProperty('--th', h); }       // a tile's colour: the hsl hue and the OKLCH hue that css/plan.css uses for equal lightness
   var NS = 'http://www.w3.org/2000/svg';
   var reduced = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
   function sv(tag, attrs, parent) {
@@ -48,7 +49,7 @@
     var dieCtx = dieCv.getContext('2d');
 
     var W = 0, H = 0, Wv = 0, cx = 0, yTop = 0, yBot = 0, R = 0, hwB = 0, hwT = 0, dieR = 0, dpr = 1, padR = 0, padB = 0;
-    var model = { stages: [], phases: [], marks: [], here: 0, hue: 215, seed: 'x', goal: { lit: 0, text: '' } };
+    var model = { stages: [], phases: [], marks: [], here: 0, hue: 185, seed: 'x', goal: { lit: 0, text: '' } };
     var tiles = [], cur = 0, tgt = 0, raf = 0, dieRaf = 0, tPrev = 0, dead = false, drawn = false;
     var famBody = 'system-ui, sans-serif', famHead = famBody;
     var drag = null, ro = null;
@@ -174,8 +175,8 @@
           if (!tl.shOn) { tl.sh.style.display = ''; tl.shOn = true; }
         } else if (tl.shOn) { tl.sh.style.display = 'none'; tl.shOn = false; }
         var cls = 'pr-tg ' + st.status + (k === hr ? ' here' : '') + (k === fi && !mini ? ' foc' : '') + (k < f - 1 ? ' past' : '');
-        if (cls !== tl.cls) { tl.g.setAttribute('class', cls); tl.cls = cls; tl.p.style.setProperty('--th', st.hue); }
-        else if (tl.th !== st.hue) { tl.p.style.setProperty('--th', st.hue); }
+        if (cls !== tl.cls) { tl.g.setAttribute('class', cls); tl.cls = cls; setHue(tl.p, st.hue); }
+        else if (tl.th !== st.hue) { setHue(tl.p, st.hue); }
         tl.th = st.hue;
         var ym = (y0 + y1) / 2, fs = Math.min(fsMax, h * 0.52);
         if (fs >= 9.5) {
@@ -255,9 +256,9 @@
     function paintDie(tm) {
       if (!dieCtx || !global.Dodeca || !dieCv.width) return;
       dieCtx.setTransform(dpr, 0, 0, dpr, 0, 0); dieCtx.clearRect(0, 0, W, dieCv.height / dpr);
-      var bob = reduced || mini ? 0 : Math.sin(tm / 900) * 2.2;
+      var bob = reduced || mini ? 0 : Math.sin(tm / 900) * 2.2, pale = !!(global.Theme && !Theme.isDark());      // by day the sky behind it is pale: frosted glass and dark lines instead of smoked glass
       Dodeca.paint(dieCtx, { x: cx, y: yTop - dieR * 0.15 + bob, r: dieR, spin: reduced || mini ? 0.5 : tm * 0.00032, style: Dodeca.styleOf('p:' + model.seed), hl: 0, lit: Math.round(clamp(model.goal.lit, 0, 1) * 12), ghost: model.stages.length ? 0 : 1,
-        hue: model.hue, sat: 82, lum: 66, light: false, alpha: 1, labels: null, font: famBody, labelOut: null });
+        hue: model.hue, sat: pale ? 78 : 82, lum: pale ? 60 : 66, light: pale, alpha: 1, labels: null, font: famBody, labelOut: null });
     }
     function dieLoop(tm) {
       dieRaf = 0; if (dead || mini) return;
@@ -265,11 +266,13 @@
       if (!reduced) dieRaf = requestAnimationFrame(dieLoop);
     }
 
+    var offTheme = global.Theme ? Theme.onChange(function () { if (dead || !host.isConnected) { offTheme(); return; } paintDie(global.performance ? performance.now() : 0); }) : null;      // day to night: the die is on a canvas, so it has to be painted again
+
     /* ---------- the model ---------- */
     function update(m) {
       var rebuild = !model.stages.length || m.stages.length !== model.stages.length || m.stages.some(function (s, i) { return model.stages[i] && model.stages[i].title !== s.title; });
       var reseed = String(m.seed) !== String(model.seed);
-      model = { stages: m.stages || [], phases: m.phases || [], marks: m.marks || [], here: m.here == null ? 0 : m.here, hue: m.hue == null ? 215 : m.hue, seed: m.seed || 'x', goal: m.goal || { lit: 0, text: '' } };
+      model = { stages: m.stages || [], phases: m.phases || [], marks: m.marks || [], here: m.here == null ? 0 : m.here, hue: m.hue == null ? 185 : m.hue, seed: m.seed || 'x', goal: m.goal || { lit: 0, text: '' } };
       host.style.setProperty('--h', model.hue);
       if (reseed && R) backdrop();
       if (rebuild || tiles.length !== model.stages.length) build();
@@ -310,7 +313,7 @@
     return {
       update: update, setFocus: setFocus, resize: resize, indexAt: indexAt,
       focus: function () { return cur; },
-      destroy: function () { dead = true; if (raf) cancelAnimationFrame(raf); if (dieRaf) cancelAnimationFrame(dieRaf); if (ro) ro.disconnect(); host.textContent = ''; host.classList.remove('pr'); }
+      destroy: function () { dead = true; if (offTheme) offTheme(); if (raf) cancelAnimationFrame(raf); if (dieRaf) cancelAnimationFrame(dieRaf); if (ro) ro.disconnect(); host.textContent = ''; host.classList.remove('pr'); }
     };
   }
 

@@ -34,7 +34,7 @@
 
   function render(plan, idx) {
     var main = U.main, s = plan.steps[idx], N = plan.steps.length, ds = PD.dates(plan);
-    document.documentElement.style.setProperty('--h', plan.hue);
+    PlanColor.apply(plan.hue);
     U.setCrumb([{ text: t('pl.title'), href: '#/' }, { text: plan.title || t('pl.untitled'), href: '#/p/' + plan.id }, { text: (idx + 1) + '. ' + (s.title || t('pl.untitled')) }]);
     main.textContent = ''; main.className = 'pl-main v-stage';
     var S = { ctl: null, busy: false, chat: [], timers: [], dead: false, dieRaf: 0 };
@@ -56,14 +56,14 @@
     nav.append(whole, mid, prev, next);
     var ribbon = el('div', 'pl-ribbon'); ribbon.setAttribute('role', 'navigation'); ribbon.setAttribute('aria-label', t('pl.s.ribbon'));
     plan.steps.forEach(function (x, i) {
-      var b = el('button', (x.status === 'done' ? 'done ' : '') + (i === idx ? 'cur' : '')); b.type = 'button'; b.style.setProperty('--th', hueOf(i)); b.title = (i + 1) + '. ' + x.title; b.setAttribute('aria-label', (i + 1) + '. ' + x.title);
+      var b = el('button', (x.status === 'done' ? 'done ' : '') + (i === idx ? 'cur' : '')); b.type = 'button'; PlanColor.setHue(b, hueOf(i)); b.title = (i + 1) + '. ' + x.title; b.setAttribute('aria-label', (i + 1) + '. ' + x.title);
       if (i === idx) b.setAttribute('aria-current', 'step');
       b.addEventListener('click', function () { location.hash = '#/p/' + plan.id + '/s/' + x.id; }); ribbon.appendChild(b);
     });
 
     /* ---------- the head: the stage as a colour block (the same one its row on the road lights up as), with a die that fills as the steps get done ---------- */
     var hh = hueOf(idx), slab = U.slab(hh), here = PD.hereIndex(plan);
-    var head = el('header', 'pl-shead'); head.style.setProperty('--th', hh); head.style.setProperty('--sa', slab.a); head.style.setProperty('--sb', slab.b);
+    var head = el('header', 'pl-shead'); PlanColor.setHue(head, hh); head.style.setProperty('--sa', slab.a); head.style.setProperty('--sb', slab.b);
     var die = el('canvas', 'pl-sdie'); die.setAttribute('aria-hidden', 'true');
     var hbody = el('div', 'pl-sbody'), num = el('div', 'pl-snum');
     if (s.phase) hbody.appendChild(el('p', 'pl-sphase', s.phase));
@@ -99,7 +99,22 @@
       Dodeca.paint(c, { x: w / 2, y: w / 2, r: w * 0.43, spin: 0.6 + (U.reduced ? 0 : tm * 0.00028), style: Dodeca.styleOf('p:' + plan.id), hl: 0, lit: Math.round(PD.stageFill(plan, idx) * 12), hue: 46, sat: 94, lum: 62, light: false, alpha: 1 });
     }
     function dieLoop(tm) { S.dieRaf = 0; if (S.dead || !die.isConnected) return; if (!document.hidden) paintDie(tm); if (!U.reduced) S.dieRaf = requestAnimationFrame(dieLoop); }
-    function drawHero() { showNum(); if (U.reduced) paintDie(0); }
+    /* the next thing to do, in one line on the colour block: the first step not yet checked; once the stage is done, the stage after it */
+    var nx = el('p', 'pl-snext');
+    function showNext() {
+      nx.textContent = ''; nx.hidden = false;
+      var k = el('span', 'k', t('pl.nx.label')), v = el('span', 'v');
+      if (s.status === 'done') {
+        var after = idx + 1 < N ? plan.steps[idx + 1] : null;
+        if (after) { k.textContent = t('pl.nx.stage'); var a = el('a', '', after.title || t('pl.untitled')); a.href = '#/p/' + plan.id + '/s/' + after.id; v.appendChild(a); }
+        else { nx.append(el('span', 'v', t('pl.nx.last'))); return; }
+      } else {
+        var open = s.tasks.filter(function (x) { return !x.done; })[0];
+        v.textContent = open ? open.t : (s.tasks.length ? t('pl.nx.allDone') : t('pl.nx.addFirst'));
+      }
+      nx.append(k, v);
+    }
+    function drawHero() { showNum(); showNext(); if (U.reduced) paintDie(0); }
     function showDates() { var d = PD.dates(plan)[idx]; dateTxt.nodeValue = U.fmtRange(d.from, d.to) + ' · ' + U.fmtDur(s.days); drawHero(); }
     showDates();
     [['todo', 'pl.st.todo'], ['doing', 'pl.st.doing'], ['done', 'pl.st.done']].forEach(function (x) {
@@ -110,7 +125,7 @@
       }); stat.appendChild(b);
     });
     function showStatus() { [].forEach.call(stat.children, function (b) { b.setAttribute('aria-pressed', b.dataset.st === s.status ? 'true' : 'false'); }); ribbon.children[idx].className = (s.status === 'done' ? 'done ' : '') + 'cur'; drawHero(); }
-    meta.append(dateEl, lenWrap, stat); hbody.appendChild(meta); head.append(die, hbody, num);
+    meta.append(dateEl, lenWrap, stat); hbody.append(meta, nx); head.append(die, hbody, num);
     var noAi = null;
     if (!U.aiReady()) { noAi = el('p', 'pl-note'); noAi.append(el('span', '', t('pl.s.noAi'))); var go = el('a', 'pl-btn sm'); go.href = 'index.html'; go.textContent = t('pl.s.noAiGo'); noAi.appendChild(go); }
 
@@ -250,7 +265,7 @@
       if (!s.res.length && resEdit !== 'new') resBody.appendChild(el('p', 'hint', t('pl.s.resHint')));
       s.res.forEach(function (r, k) {
         if (resEdit === r.id) { resBody.appendChild(resForm(r)); return; }
-        var row = el('div', 'pl-res'); row.style.setProperty('--th', hueOf(idx));
+        var row = el('div', 'pl-res'); PlanColor.setHue(row, hueOf(idx));
         var icon = el('span', 'ic'); icon.appendChild(ic(r.kind, 18));
         var c = el('div'); c.append(el('span', 'kd', t(KIND_NAME[r.kind])), el('b', '', r.title)); if (r.note) c.appendChild(el('span', 'nt', r.note));
         var go = el('div', 'go');
@@ -355,7 +370,7 @@
         var big = el('div', 'pl-time'); big.append(el('span', 'big', U.fmtMin(tot)), hint); hint.className = 'of'; logBody.appendChild(big);
         var bar = el('div', 'pl-bar'), bi = el('i'); bi.style.width = Math.min(100, Math.round(tot / bud * 100)) + '%'; bar.appendChild(bi); bar.style.marginBottom = '12px'; logBody.appendChild(bar);
         var by = {}, last = PD.today(), mx = 0; s.log.forEach(function (x) { by[x.date] = (by[x.date] || 0) + x.min; if (x.date > last) last = x.date; });
-        var days = el('div', 'pl-days'); days.setAttribute('role', 'img'); days.setAttribute('aria-label', t('pl.s.days14')); days.style.setProperty('--th', hueOf(idx));
+        var days = el('div', 'pl-days'); days.setAttribute('role', 'img'); days.setAttribute('aria-label', t('pl.s.days14')); PlanColor.setHue(days, hueOf(idx));
         var cells = []; for (var k = 13; k >= 0; k--) { var dd = GM.iso(GM.addDays(GM.parse(last), -k)); cells.push([dd, by[dd] || 0]); mx = Math.max(mx, by[dd] || 0); }
         cells.forEach(function (c) { var b = el('i', (c[1] ? 'on' : '') + (c[0] === PD.today() ? ' today' : '')); b.style.height = c[1] ? Math.max(12, Math.round(c[1] / mx * 100)) + '%' : '6%'; b.title = U.fmtD(c[0]) + (c[1] ? ' · ' + U.fmtMin(c[1]) : ''); days.appendChild(b); });
         logBody.appendChild(days);
@@ -424,7 +439,7 @@
     [goalSec, tasksSec, pracSec, noteSec].forEach(function (x) { a.appendChild(x.box); });
     [resSec, resultSec, logSec, askSec].forEach(function (x) { b.appendChild(x.box); });
     var order = [goalSec, tasksSec, resSec, pracSec, noteSec, resultSec, logSec, askSec];            // the order on a narrow screen, where the two columns become one
-    order.forEach(function (x, i) { x.box.style.order = i + 1; x.box.style.setProperty('--th', hh); });
+    order.forEach(function (x, i) { x.box.style.order = i + 1; PlanColor.setHue(x.box, hh); });
     cols.append(a, b);
     var jump = el('nav', 'pl-jump'); jump.setAttribute('aria-label', t('pl.s.jump'));
     order.forEach(function (x) {

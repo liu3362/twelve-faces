@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#070b16">
+<meta name="color-scheme" content="light dark">
+<script src="js/theme.js"></script>
 <title data-i18n="pl.title">The road ahead</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <!-- Web fonts are optional: if they can’t load (e.g. Google is blocked), system fonts are used and the page doesn’t stall -->
@@ -17,6 +17,7 @@
 <header class="pl-top">
   <a class="pl-back" id="plBack" href="index.html" data-i18n="pl.back"></a>
   <nav class="pl-crumb" id="plCrumb" data-i18n-aria-label="pl.crumb"></nav>
+  <button class="pl-btn icon pl-theme" id="plTheme" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-aria-label="set.theme" data-i18n-title="set.theme"></button>
 </header>
 
 <main class="pl-main" id="plMain"></main>
@@ -38,6 +39,7 @@
 <script src="js/profiles.js"></script>
 <script src="js/dodeca.js"></script>
 <script src="js/countdown.js"></script>
+<script src="js/plan-color.js"></script>
 <script src="js/plan-data.js"></script>
 <script src="js/plan-ai.js"></script>
 <script src="js/plan-road.js"></script>

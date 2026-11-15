@@ -22,7 +22,10 @@
     web: 'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2.300 2.200 2.300 9.800 0 12M8 2c-2.300 2.200-2.300 9.800 0 12', tool: 'M10 2.500a3.200 3.200 0 0 0-3 4.300L2.500 11.300l2.200 2.200 4.500-4.500a3.200 3.200 0 0 0 4.300-3l-2 1.500-1.800-1.800z',
     other: 'M4 2.500h5.500L12.500 5.500v8H4zM9.500 2.500v3h3', flag: 'M4 14V2.500M4 3h8l-2 3 2 3H4', fold: 'M4 6l4 4 4-4',
     cal: 'M2.500 4.500h11v9h-11zM2.500 7.500h11M5.500 2.500v3M10.500 2.500v3', clock: 'M8 2.500a5.500 5.500 0 1 0 0 11 5.500 5.500 0 0 0 0-11zM8 5v3.200l2.200 1.300', steps: 'M2.500 4l1.500 1.500L6.200 3.300M2.500 9.500L4 11l2.200-2.200M8.500 4.500h5M8.500 10h5',
-    grip: 'M3 5.500h10M3 10.500h10'
+    grip: 'M3 5.500h10M3 10.500h10', dense: 'M3 4h10M3 8h10M3 12h10',
+    sun: 'M8 5.300a2.700 2.700 0 1 0 0 5.400 2.700 2.700 0 0 0 0-5.400zM8 1.500v1.500M8 13v1.500M1.500 8H3M13 8h1.500M3.400 3.400l1 1M11.600 11.600l1 1M3.400 12.600l1-1M11.600 4.400l1-1',
+    moon: 'M12.800 9.600A5.200 5.200 0 0 1 6.400 3.200a5.200 5.200 0 1 0 6.400 6.400z',
+    screen: 'M2.500 3h11v7.500h-11zM6 13h4M8 10.500V13'
   };
   function ic(name, size) {
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -56,18 +59,16 @@
     var y = Math.round(n / 36.5) / 10; return t('pl.dur.y', { n: y.toLocaleString(t('lang.html'), { maximumFractionDigits: 1 }) });
   }
   function fmtMin(m) { m = Math.round(m); if (m < 60) return t('dur', { n: m, u: t('unit.min') }); var h = Math.floor(m / 60), r = m % 60; return t('dur', { n: h, u: t('unit.hour') }) + (r ? ' ' + t('dur', { n: r, u: t('unit.min') }) : ''); }
-  function hue(plan, i) { return Countdown.journeyHue(plan.hue, i, Math.max(1, plan.steps.length)); }
-  /* the colours of a lit stage: as light as the hue allows while white text on it still reads (yellow has to be deep, blue can be bright) */
-  var slabMemo = {};
-  function lumOf(h, sat, l) {
-    var a = sat * Math.min(l, 1 - l), f = function (n) { var k = (n + h / 30) % 12, c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-    return 0.2126 * f(0) + 0.7152 * f(8) + 0.0722 * f(4);
+  /* The colour of stage i: it starts at the plan's own hue and warms toward gold by the end, so one road reads as one journey (teal, then green, then gold).
+     A blue plan used to take the short way round and ended up violet, purple and magenta; blues now go the long way, through teal and green. */
+  function journeyHue(base, i, n) {
+    var f = n > 1 ? clamp(i / (n - 1), 0, 1) : 1, d = ((18 - base + 540) % 360) - 180;
+    if (base > 195 && base < 262 && d > 0) d -= 360;
+    return Math.round((base + d * Math.pow(f, 1.3) * 0.88 + 720) % 360);
   }
-  function slab(h) {
-    h = ((Math.round(h) % 360) + 360) % 360; var c = slabMemo[h]; if (c) return c;
-    var best = 0.14; for (var i = 14; i <= 66; i++) if (1.05 / (lumOf(h, 0.74, i / 100) + 0.05) >= 4.5) best = i / 100;
-    return (slabMemo[h] = { a: 'hsl(' + h + ' 74% ' + Math.round(best * 100) + '%)', b: 'hsl(' + h + ' 78% ' + Math.round(best * 68) + '%)' });
-  }
+  function hue(plan, i) { return journeyHue(plan.hue, i, Math.max(1, plan.steps.length)); }
+  /* the colours of a lit stage: one lightness for every hue, white writing on it (js/plan-color.js) */
+  function slab(h) { return PlanColor.slab(h); }
 
   /* ---------- the toast, with an undo ---------- */
   var toastTimer = 0;
@@ -95,6 +96,7 @@
       var b = it.href ? el('a') : el('button'); if (!it.href) b.type = 'button'; else { b.href = it.href; b.target = '_blank'; b.rel = 'noopener noreferrer'; }
       b.setAttribute('role', 'menuitem'); if (it.danger) b.className = 'danger';
       if (it.icon) b.appendChild(ic(it.icon, 15)); b.appendChild(document.createTextNode(it.label));
+      if (it.on != null) { b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', it.on ? 'true' : 'false'); if (it.on) { var ck = ic('check', 15); ck.classList.add('chosen'); b.appendChild(ck); } }
       if (it.off) b.disabled = true;
       b.addEventListener('click', function () { closeMenu(); if (it.fn) it.fn(); });
       node.appendChild(b);
@@ -186,6 +188,22 @@
     });
   }
 
+  /* ---------- the background: follow the system, light or dark (a quick menu in the top bar; the same choice lives in the study room's settings) ---------- */
+  var themeBtn = document.getElementById('plTheme');
+  function paintThemeBtn() { if (!themeBtn) return; themeBtn.textContent = ''; themeBtn.appendChild(ic(global.Theme && Theme.isDark() ? 'moon' : 'sun', 17)); }
+  if (themeBtn && global.Theme) {
+    paintThemeBtn(); Theme.onChange(paintThemeBtn);
+    themeBtn.addEventListener('click', function () {
+      if (openMenu && openMenu.anchor === themeBtn) { closeMenu(); return; }
+      var c = Theme.get(), pick = function (v) { return function () { Theme.set(v); paintThemeBtn(); }; };
+      menu(themeBtn, [
+        { label: t('theme.system'), icon: 'screen', on: c === 'system', fn: pick('system') },
+        { label: t('theme.light'), icon: 'sun', on: c === 'light', fn: pick('light') },
+        { label: t('theme.dark'), icon: 'moon', on: c === 'dark', fn: pick('dark') }
+      ]);
+    });
+  }
+
   /* ---------- small persistent view settings (which phases are folded) ---------- */
   function uiGet() { try { return JSON.parse(localStorage.getItem('tf-plans-ui') || '{}') || {}; } catch (e) { return {}; } }
   function uiSet(o) { try { localStorage.setItem('tf-plans-ui', JSON.stringify(o)); } catch (e) {} }
@@ -246,11 +264,11 @@
   }
   function sampleModel() {                       // a made-up road for the empty page: a few stages done, one in progress, the rest ahead
     var n = 18, stages = [], i;
-    for (i = 0; i < n; i++) stages.push({ title: String(i + 1), status: i < 3 ? 'done' : (i === 3 ? 'doing' : 'todo'), fill: 0, hue: Countdown.journeyHue(215, i, n), from: '', to: '' });
-    return { stages: stages, phases: [], marks: [], here: 3, hue: 215, seed: 'sample', goal: { lit: 0.25, text: '', sub: '' } };
+    for (i = 0; i < n; i++) stages.push({ title: String(i + 1), status: i < 3 ? 'done' : (i === 3 ? 'doing' : 'todo'), fill: 0, hue: journeyHue(185, i, n), from: '', to: '' });
+    return { stages: stages, phases: [], marks: [], here: 3, hue: 185, seed: 'sample', goal: { lit: 0.25, text: '', sub: '' } };
   }
   function renderHome() {
-    document.documentElement.style.setProperty('--h', 215);
+    PlanColor.apply(185);
     setCrumb([]); main.textContent = '';
     var plans = PD.list();
     var hero = el('header', 'pl-hero'), glyph = el('i', 'pl-glyph'), hg = el('div', 'pl-hgroup'); glyph.setAttribute('aria-hidden', 'true');
@@ -264,7 +282,7 @@
       var end = PD.endDate(p), left = GM.nDays(GM.startOfToday(), GM.parse(end)), prog = PD.progress(p), pc = Math.round(prog * 100);
       var fin = p.steps.length && p.steps.every(function (x) { return x.status === 'done'; });
       if (!p.steps.length) b.appendChild(el('div', 'pl-cm', t('pl.card.empty')));
-      else b.appendChild(Countdown.pill({ icon: 'goal', label: t('pl.card.finish'), sub: t('pl.card.pctDone', { n: pc }), days: left, date: fmtD(end, true), hue: p.hue, fill: prog, word: fin ? t('pl.card.done') : null }));
+      else b.appendChild(pill({ icon: 'goal', label: t('pl.card.finish'), sub: t('pl.card.pctDone', { n: pc }), days: left, date: fmtD(end, true), hue: p.hue, fill: prog, word: fin ? t('pl.card.done') : null }));
       a.appendChild(b); cards.appendChild(a); minis.push([p, mini]);
     });
     var nb = el('button', 'pl-card new'); nb.type = 'button';
@@ -403,6 +421,9 @@
 
   /* ================= one plan ================= */
   var ROADH = [0.27, 0.45, 0.63], READ = 64;       // how tall the road is on a phone (a share of the window: small, medium, tall); how far below the panel's top edge the reading line runs
+  function pill(o) {                                 // the countdown card, in the colours of a lit stage (white writing on a deep fill, the same lightness for every hue)
+    var d = Countdown.pill(o), sl = PlanColor.slab(o.hue == null ? 185 : o.hue); d.style.setProperty('--sa', sl.a); d.style.setProperty('--sb', sl.b); return d;
+  }
   function numFor(plan, i, ds, here) {              // the big number on a stage's row: how long until it starts, or how long it has left
     var s = plan.steps[i]; if (s.status === 'done') return null;
     var today = GM.startOfToday(), from = GM.parse(ds.from), to = GM.parse(ds.to), n;
@@ -415,15 +436,17 @@
     return { n: n, label: t(n === 1 ? 'pl.row.away1' : 'pl.row.away') };
   }
   function renderPlan(plan) {
-    document.documentElement.style.setProperty('--h', plan.hue);
+    PlanColor.apply(plan.hue);
     document.body.classList.add('v-plan'); main.className = 'pl-main v-plan';
     setCrumb([{ text: t('pl.title'), href: '#/' }, { text: plan.title || t('pl.untitled') }]);
     main.textContent = '';
     var V = { plan: plan, road: null, anchors: [], rowEls: [], folded: (uiGet()[plan.id] || {}), editing: null, readIdx: -1, raf: 0, busy: null, ctl: null, rh: 1, f: 0 };
     var ui0 = uiGet(); if (ui0['#rh'] >= 0 && ui0['#rh'] <= 2) V.rh = ui0['#rh'];
+    V.compact = !!ui0['#compact'];                                            // one-line rows (the "Compact" button in the head of the list)
     var scene = el('section', 'pl-scene'), roadEl = el('div', 'pl-road'), rt = el('div', 'pl-rtools'), scrub = el('div', 'pl-scrub');
     scene.append(roadEl, rt, scrub);
     var panel = el('aside', 'pl-panel'), handle = el('button', 'pl-handle'), head = el('header', 'pl-phead'), notes = el('div', 'pl-pnotes'), outline = el('div', 'pl-outline');
+    panel.classList.toggle('compact', V.compact);
     handle.type = 'button'; handle.setAttribute('role', 'separator'); handle.setAttribute('aria-orientation', 'horizontal'); handle.setAttribute('aria-label', t('pl.handle'));
     panel.append(handle, head, outline, el('div', 'pl-spacer'), notes);        // the notes come last in the markup: they float at the bottom of the list
     main.append(scene, panel);
@@ -438,7 +461,7 @@
       head.appendChild(el('p', 'pl-pmeta', n ? t('pl.meta', { n: n, from: fmtD(plan.start, true), to: fmtD(end, true), h: plan.hours }) : t('pl.meta0', { h: plan.hours })));
       if (n) {
         var prog = PD.progress(plan), pc = Math.round(prog * 100), left = GM.nDays(GM.startOfToday(), GM.parse(end)), c = PD.counts(plan), fin = plan.steps.every(function (x) { return x.status === 'done'; });
-        head.appendChild(Countdown.pill({ icon: 'goal', label: t('pl.card.finish'), sub: t('pl.card.pctDone', { n: pc }), days: left, date: fmtD(end, true), hue: plan.hue, fill: prog, word: fin ? t('pl.card.done') : null, state: fin ? '' : 'cur' }));
+        head.appendChild(pill({ icon: 'goal', label: t('pl.card.finish'), sub: t('pl.card.pctDone', { n: pc }), days: left, date: fmtD(end, true), hue: plan.hue, fill: prog, word: fin ? t('pl.card.done') : null, state: fin ? '' : 'cur' }));
         var st = el('div', 'pl-pstat'); st.appendChild(el('span', 'pl-small', t('pl.counts', { done: c.done, all: n }))); head.appendChild(st);
       }
       if (plan.summary) head.appendChild(el('p', 'pl-psum', plan.summary));
@@ -503,7 +526,7 @@
       var ds = V.ds, done = 0, k;
       for (k = g.from; k <= g.to; k++) if (plan.steps[k].status === 'done') done++;
       var open = !V.folded[foldedKey(g.name)];
-      var h = el('div', 'pl-phase'); h.style.setProperty('--th', hue(plan, g.from)); h.dataset.from = g.from;
+      var h = el('div', 'pl-phase'); PlanColor.setHue(h, hue(plan, g.from)); h.dataset.from = g.from;
       var fold = el('button', 'pl-fold'); fold.type = 'button'; fold.setAttribute('aria-expanded', open ? 'true' : 'false'); fold.setAttribute('aria-label', t(open ? 'pl.phase.fold' : 'pl.phase.unfold', { name: g.name })); fold.appendChild(ic('fold', 14));
       fold.addEventListener('click', function () { if (open) V.folded[foldedKey(g.name)] = 1; else delete V.folded[foldedKey(g.name)]; saveFold(); renderOutline(); syncFocus(true); });
       h.append(fold, el('h2', '', g.name), el('span', 'm', t('pl.phase.meta', { n: g.n, done: done, range: fmtRange(ds[g.from].from, ds[g.to].to) })));
@@ -517,7 +540,8 @@
     function stageRow(i, last) {
       var s = plan.steps[i], ds = V.ds[i], here = V.here, isHere = i === here, th = hue(plan, i), sl = slab(th);
       var row = el('article', 'pl-row' + (s.status === 'done' ? ' done' : '') + (isHere ? ' here' : '') + (last ? ' last' : '')); row.dataset.i = i; row.dataset.id = s.id;
-      row.style.setProperty('--th', th); row.style.setProperty('--tn', hue(plan, Math.min(i + 1, plan.steps.length - 1))); row.style.setProperty('--sa', sl.a); row.style.setProperty('--sb', sl.b);
+      if (isHere) row.setAttribute('aria-current', 'step');
+      PlanColor.setHue(row, th); row.style.setProperty('--tn', hue(plan, Math.min(i + 1, plan.steps.length - 1))); row.style.setProperty('--sa', sl.a); row.style.setProperty('--sb', sl.b);
       var n = el('button', 'pl-n'); n.type = 'button'; n.setAttribute('aria-pressed', s.status === 'done' ? 'true' : 'false'); n.setAttribute('aria-label', t('pl.row.toggle', { n: i + 1 })); n.title = t(s.status === 'done' ? 'pl.row.undone' : 'pl.row.done');
       if (s.status === 'done') n.appendChild(ic('check', 18)); else n.textContent = String(i + 1);
       n.addEventListener('click', function () { PD.setStatus(plan, s.id, s.status === 'done' ? 'todo' : 'done'); refreshAll(); });
@@ -532,7 +556,7 @@
       var side = el('div', 'pl-side'), nf = numFor(plan, i, ds, here);
       if (nf) {
         var num = el('div', 'pl-num' + (nf.over ? ' over' : ''));
-        if (nf.word) { var w = el('b', 'word', nf.word); num.appendChild(w); } else { num.appendChild(el('b', '', String(nf.n))); num.appendChild(el('small', '', nf.label)); }
+        if (nf.word) { var w = el('b', 'word', nf.word); num.appendChild(w); } else { var u = el('i', 'u', t('pl.row.d')); u.setAttribute('aria-hidden', 'true'); num.appendChild(el('b', '', String(nf.n))); num.appendChild(u); num.appendChild(el('small', '', nf.label)); }
         side.appendChild(num);
       } else side.appendChild(el('span'));
       var acts = el('div', 'pl-acts');
@@ -637,6 +661,8 @@
         if (aiReady()) e.appendChild(btn(t('pl.m.rebuild'), 'sm', function () { rebuild(); }, 'ai'));
         outline.appendChild(e); return;
       }
+      var vt = el('div', 'pl-vtools'), cb = btn(t('pl.compact'), 'sm', function () { setCompact(!V.compact); cb.setAttribute('aria-pressed', V.compact ? 'true' : 'false'); }, 'dense', t('pl.compact.tip'));
+      cb.setAttribute('aria-pressed', V.compact ? 'true' : 'false'); vt.appendChild(cb); outline.appendChild(vt);                // how the list looks: one line per stage, or the full rows
       var groups = PD.phases(plan), named = groups.some(function (g) { return g.name; });
       groups.forEach(function (g, gi) {
         var folded = g.name && V.folded[foldedKey(g.name)];
@@ -657,15 +683,21 @@
 
     /* ---------- the gold knob under the road: walk the whole journey ---------- */
     function buildScrub() {
-      var n = plan.steps.length; scrub.textContent = ''; scrub.hidden = !n; V.sc = null; if (!n) return;
+      var n = plan.steps.length; scrub.textContent = ''; scrub.hidden = !n; V.sc = null; V.paintSeg = null; if (!n) return;
       var ends = el('div', 'ends'), eA = el('span', '', fmtD(plan.start, true)), eB = el('span', '', fmtD(PD.endDate(plan), true));
-      var trk = el('div', 'trk'), bar = el('div', 'bar'), mark = el('i', 'mark'), knob = el('i', 'knob'), tip = el('div', 'tip'), here = PD.hereIndex(plan), stops = [];
+      var trk = el('div', 'trk'), bar = el('div', 'bar'), mark = el('i', 'mark'), knob = el('i', 'knob'), tip = el('div', 'tip'), here = PD.hereIndex(plan);
       trk.tabIndex = 0; trk.setAttribute('role', 'slider'); trk.setAttribute('aria-label', t('pl.scrub')); trk.setAttribute('aria-valuemin', '1'); trk.setAttribute('aria-valuemax', String(n)); trk.setAttribute('aria-orientation', 'horizontal');
-      plan.steps.forEach(function (s, i) {
-        var h = hue(plan, i), col = s.status === 'done' ? 'hsl(' + h + ' 80% 62%)' : (i === here ? 'hsl(' + h + ' 96% 74%)' : 'hsl(' + h + ' 48% 30% / .85)');
-        stops.push(col + ' ' + (i / n * 100).toFixed(3) + '% ' + ((i + 1) / n * 100).toFixed(3) + '%');
-      });
-      bar.style.setProperty('--seg', 'linear-gradient(90deg,' + stops.join(',') + ')');
+      function segCss() {                                                           // one colour per stage: done = full, here = bright, ahead = quiet (pale by day, dim by night)
+        var day = !(global.Theme && Theme.isDark()), st = [];
+        plan.steps.forEach(function (s, i) {
+          var h = hue(plan, i), col = s.status === 'done' ? (day ? 'hsl(' + h + ' 56% 50%)' : 'hsl(' + h + ' 66% 58%)')
+            : i === here ? (day ? 'hsl(' + h + ' 76% 36%)' : 'hsl(' + h + ' 84% 68%)')
+            : (day ? 'hsl(' + h + ' 40% 82%)' : 'hsl(' + h + ' 40% 28% / .85)');
+          st.push(col + ' ' + (i / n * 100).toFixed(3) + '% ' + ((i + 1) / n * 100).toFixed(3) + '%');
+        });
+        return 'linear-gradient(90deg,' + st.join(',') + ')';
+      }
+      bar.style.setProperty('--seg', segCss()); V.paintSeg = function () { bar.style.setProperty('--seg', segCss()); };
       mark.style.left = (clamp((here + 0.5) / n, 0, 1) * 100) + '%';
       trk.append(bar, mark, knob, tip);
       var back = btn(t('pl.scrub.here'), 'sm main', function () { if (here < n) scrollRowIntoView(here, true); }); back.classList.add('back'); back.hidden = true;
@@ -734,6 +766,13 @@
       panel.scrollTo({ top: Math.max(0, contentTop(row) - 52), behavior: (reduced || instant) ? 'auto' : 'smooth' });
       if (pulse) { setTimeout(function () { row.classList.remove('pulse'); void row.offsetWidth; row.classList.add('pulse'); }, reduced ? 0 : 350); }
     }
+    function setCompact(on) {                          // one-line rows: the list keeps its place (the stage at the reading line stays there) and the choice is remembered
+      var f = V.f, a0 = V.anchors[0], inHead = !a0 || panel.scrollTop <= contentTop(a0.el) - READ;      // at the top of the panel the title and buttons are what you are looking at: leave them there
+      V.compact = !!on; panel.classList.toggle('compact', V.compact);
+      var o = uiGet(); if (V.compact) o['#compact'] = 1; else delete o['#compact']; uiSet(o);
+      if (!inHead) scrollForFocus(f);
+      syncFocus(true);
+    }
     function onScroll() { if (V.raf) return; V.raf = requestAnimationFrame(function () { V.raf = 0; syncFocus(false); }); }
     function onResize() { applyRoadH(); if (V.road) V.road.resize(); syncFocus(true); }
     panel.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onResize); currentRefresh = refreshAll;
@@ -786,7 +825,10 @@
       syncFocus(true);
     });
 
+    var offTheme = global.Theme ? Theme.onChange(function () { if (V.paintSeg) V.paintSeg(); }) : null;         // day to night: the colours of the bar under the road
+
     return function () {
+      if (offTheme) offTheme();
       scrollMemo[plan.id] = panel.scrollTop; currentRefresh = null;
       panel.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize);
       if (V.raf) cancelAnimationFrame(V.raf); if (V.ctl) V.ctl.abort();
@@ -816,8 +858,10 @@
     f.appendChild(field(t('pl.f.level'), iL, 'epL')); f.appendChild(field(t('pl.f.note'), iN, 'epN'));
     var hs = el('div', 'pl-f'); hs.appendChild(el('span', 'pl-lbl', t('pl.f.color')));
     var sw = el('div', 'pl-chips'); var hv = plan.hue;
-    PD.HUES.concat([95, 320, 55]).forEach(function (h) { var b = el('button', 'pl-chip'); b.type = 'button'; b.style.background = 'hsl(' + h + ' 62% 60%)'; b.style.width = b.style.height = '30px'; b.style.padding = 0; b.setAttribute('aria-label', String(h)); b.setAttribute('aria-pressed', h === hv ? 'true' : 'false'); b.style.borderWidth = h === hv ? '3px' : '1px';
-      b.addEventListener('click', function () { hv = h; [].forEach.call(sw.children, function (x) { x.setAttribute('aria-pressed', 'false'); x.style.borderWidth = '1px'; }); b.setAttribute('aria-pressed', 'true'); b.style.borderWidth = '3px'; }); sw.appendChild(b); });
+    [5, 35, 55, 95, 155, 185, 215, 275, 320].forEach(function (h) {                  // the nine colours, in the order of the colour wheel; each dot is the colour the plan will wear
+      var b = el('button', 'pl-sw'); b.type = 'button'; b.style.setProperty('--sw', PlanColor.swatch(h)); b.title = t('pl.hue.' + h); b.setAttribute('aria-label', t('pl.hue.' + h)); b.setAttribute('aria-pressed', h === hv ? 'true' : 'false');
+      b.addEventListener('click', function () { hv = h; [].forEach.call(sw.children, function (x) { x.setAttribute('aria-pressed', 'false'); }); b.setAttribute('aria-pressed', 'true'); }); sw.appendChild(b);
+    });
     hs.appendChild(sw); f.appendChild(hs);
     var err = el('p', 'pl-err'); f.appendChild(err);
     var foot = el('div', 'pl-dfoot'); foot.appendChild(btn(t('pl.cancel'), 'ghost', closeDialog));
@@ -826,7 +870,7 @@
       e.preventDefault(); if (!iT.value.trim()) { err.textContent = t('pl.err.title'); return; }
       plan.title = iT.value.trim().slice(0, 100); if (GM.parse(iS.value)) plan.start = iS.value; plan.target = GM.parse(iE.value) ? iE.value : '';
       plan.hours = clamp(parseInt(iH.value, 10) || plan.hours, 1, 80); plan.level = iL.value.slice(0, 400); plan.note = iN.value.slice(0, 800); plan.face = iF.value; plan.hue = hv;
-      PD.save(); closeDialog(); document.documentElement.style.setProperty('--h', plan.hue); setCrumb([{ text: t('pl.title'), href: '#/' }, { text: plan.title }]); if (done) done();
+      PD.save(); closeDialog(); PlanColor.apply(plan.hue); setCrumb([{ text: t('pl.title'), href: '#/' }, { text: plan.title }]); if (done) done();
     });
     openDialog(f);
   }
