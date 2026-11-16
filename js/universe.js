@@ -72,7 +72,7 @@
     /* ---------- the cells ---------- */
     function spawn(d, instant) {
       var h1 = hashStr(d.id), h2 = hashStr(d.id + 'x'), h3 = hashStr(d.id + 'y');
-      var c = { id: d.id, d: d, style: Dodeca.styleOf(d.id), x: 0, y: 0, vx: 0, vy: 0, r0: 0, rt: 0, r: 0, s: 0, sv: 0, dying: false,
+      var c = { id: d.id, d: d, style: Dodeca.styleOf(d.id, Dodeca.isLong(d.end - d.start + 1)), x: 0, y: 0, vx: 0, vy: 0, r0: 0, rt: 0, r: 0, s: 0, sv: 0, dying: false,
         rho: new Float32Array(MP), rv: new Float32Array(MP), tgt: new Float32Array(MP), tmp: new Float32Array(MP), pts: new Float32Array(MP * 2),
         qx: 0, qy: 0, minR: 0, pres: 1, past: 0, fut: 0, hl: 0, lit: 0, ghostA: 0,
         spin: h1 * TAU, spinV: (0.32 + 0.3 * h2) * (h3 < 0.5 ? 1 : -1), yoff: h3 * 2 - 1, wob: h2 * TAU, born: T, px: 0, py: 0 };
@@ -89,7 +89,7 @@
         seen[d.id] = 1;
         var c = byId[d.id];
         if (!c) { c = spawn(d, instant || !cells.length); cells.push(c); byId[d.id] = c; if (instant) { c.s = 1; c.sv = 0; } else ripple(Math.atan2(c.y, c.x), 22); }
-        else { c.d = d; c.dying = false; }
+        else { c.d = d; c.dying = false; c.style = Dodeca.styleOf(d.id, Dodeca.isLong(d.end - d.start + 1)); }
       });
       cells.forEach(function (c) { if (!seen[c.id]) c.dying = true; });
       if (instant) for (var i = 0; i < 40; i++) step(1 / 60, true);
@@ -501,6 +501,7 @@
       setPadding: function (p) { pad = p; measure(); },
       cellAt: function (x, y) { var c = cellAt(x - cx, y - cy); return c ? c.id : null; },
       screenPos: function (id) { var c = byId[id]; return c ? { x: cx + c.x, y: cy + c.y, r: c.r } : null; },
+      lookOf: function (id) { var c = byId[id]; return c ? c.style : null; },
       count: function () { return cells.length; },
       snapshot: function () { return canvas.toDataURL('image/png'); },
       ripple: function (a, f) { ripple(a, f); },

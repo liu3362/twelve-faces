@@ -14,6 +14,7 @@
   function setHue(node, h) { if (global.PlanColor) global.PlanColor.setHue(node, h); else node.style.setProperty('--th', h); }       // a tile's colour: the hsl hue and the OKLCH hue that css/plan.css uses for equal lightness
   var NS = 'http://www.w3.org/2000/svg';
   var reduced = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var coarse = !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
   function sv(tag, attrs, parent) {
     var e = document.createElementNS(NS, tag);
     for (var k in attrs) e.setAttribute(k, attrs[k]);
@@ -123,9 +124,9 @@
       var Bmin = f > 0 ? Math.min(R * 0.16, f * 4) : 0;
       var B = f > 0 ? Math.min(Math.max(Bmin, R - fut * R * 0.28), f * R * 0.28) : 0;     // the trail behind you: thin, but longer the nearer you are to the end
       var rest = R - B;
-      var minH = Math.min(clamp(0.5 * rest / fut, 2.6, 11), 0.9 * rest / fut);              // even the farthest stage keeps a sliver
+      var minH = Math.min(clamp(0.55 * rest / fut, 2.6, 12), 0.9 * rest / fut);              // even the farthest stage keeps a sliver (and with many stages, more of them are tall enough for a name)
       var Bp = Math.max(0, rest - minH * fut);
-      var kappa = clamp(0.5 * fut, 2.2, 6);                                                  // how fast stages shrink away from the reading line
+      var kappa = clamp(0.5 * fut, 2.2, 9);                                                  // how fast stages shrink away from the reading line (the higher, the more evenly the next stages share the road)
       var den = 1 - 1 / (1 + fut / kappa);
       return function (x) {
         if (x <= f) return f > 0 ? B * x / f : 0;
@@ -162,7 +163,7 @@
       if (!N) return;
       var m = mapFor(N, f), ys = new Array(N + 1), k;
       for (k = 0; k <= N; k++) ys[k] = yBot - m(k);
-      var fsMax = mini ? 0 : (H > 560 ? 15.5 : 14);
+      var fsMax = mini ? 0 : (H > 560 ? 15.5 : 14), dpr = global.devicePixelRatio || 1, fsMin = dpr >= 1.75 && !coarse ? 8.6 : 9.6;      // the smallest name worth drawing: a sharp screen with a mouse reads smaller type than a phone held at arm's length
       for (k = 0; k < N; k++) {
         var tl = tiles[k], st = model.stages[k], y0 = ys[k], y1 = ys[k + 1], h = y0 - y1;
         if (h < 0.7) { if (tl.on) { tl.g.style.display = 'none'; tl.on = false; } continue; }
@@ -178,17 +179,21 @@
         if (cls !== tl.cls) { tl.g.setAttribute('class', cls); tl.cls = cls; setHue(tl.p, st.hue); }
         else if (tl.th !== st.hue) { setHue(tl.p, st.hue); }
         tl.th = st.hue;
-        var ym = (y0 + y1) / 2, fs = Math.min(fsMax, h * 0.52);
-        if (fs >= 9.5) {
-          var room = 2 * Math.min(wa, wb) - 18, tx = fitText((k + 1) + '  ' + st.title, room, fs, 600, famBody);
-          if (tx) { tl.tx.setAttribute('x', cx.toFixed(1)); tl.tx.setAttribute('y', (ym + fs * 0.36).toFixed(1)); tl.tx.setAttribute('font-size', fs.toFixed(1)); if (tl.txt !== tx) { tl.tx.textContent = tx; tl.txt = tx; } tl.tx.style.display = ''; }
-          else { tl.tx.style.display = 'none'; tl.txt = null; }
+        var ym = (y0 + y1) / 2, fs = Math.round(Math.min(fsMax, h * 0.6) * 10) / 10;                   // a name takes most of its stripe; the stripes shrink away, so the names do too
+        if (fs >= fsMin) {
+          var small = fs < 12, wt = small ? 700 : 650;                                                  // small type is set heavier and with a lighter halo, so it stays crisp
+          var room = 2 * Math.min(wa, wb) - 18, tx = fitText((k + 1) + '  ' + st.title, room, fs, wt, famBody);
+          if (tx) {
+            tl.tx.setAttribute('x', cx.toFixed(1)); tl.tx.setAttribute('y', (ym + fs * 0.36).toFixed(1)); tl.tx.setAttribute('font-size', fs);
+            if (tl.sm !== small) { tl.tx.setAttribute('class', 'pr-tx' + (small ? ' sm' : '')); tl.sm = small; }
+            if (tl.txt !== tx) { tl.tx.textContent = tx; tl.txt = tx; } tl.tx.style.display = '';
+          } else { tl.tx.style.display = 'none'; tl.txt = null; }
         } else if (tl.txt !== null || tl.tx.style.display !== 'none') { tl.tx.style.display = 'none'; tl.txt = null; }
       }
       if (mini) { markHere(ys); return; }
 
       /* phase names stand on the left, at the line where the phase begins */
-      var lastY = 1e9, ph = model.phases.slice().sort(function (a, b) { return b.from - a.from; });
+      var lastY = 1e9, ph = model.phases.slice().sort(function (a, b) { return a.from - b.from; });          // from the nearest phase up the road: each name keeps its own line unless it would touch the one below
       ph.forEach(function (p) {
         if (!p.name) return;
         var y = ys[p.from], x = cx - hw(y);
@@ -257,7 +262,7 @@
       if (!dieCtx || !global.Dodeca || !dieCv.width) return;
       dieCtx.setTransform(dpr, 0, 0, dpr, 0, 0); dieCtx.clearRect(0, 0, W, dieCv.height / dpr);
       var bob = reduced || mini ? 0 : Math.sin(tm / 900) * 2.2, pale = !!(global.Theme && !Theme.isDark());      // by day the sky behind it is pale: frosted glass and dark lines instead of smoked glass
-      Dodeca.paint(dieCtx, { x: cx, y: yTop - dieR * 0.15 + bob, r: dieR, spin: reduced || mini ? 0.5 : tm * 0.00032, style: Dodeca.styleOf('p:' + model.seed), hl: 0, lit: Math.round(clamp(model.goal.lit, 0, 1) * 12), ghost: model.stages.length ? 0 : 1,
+      Dodeca.paint(dieCtx, { x: cx, y: yTop - dieR * 0.15 + bob, r: dieR, spin: reduced || mini ? 0.5 : tm * 0.00032, style: Dodeca.styleOf('p:' + model.seed, !!(model.goal && model.goal.long)), hl: 0, lit: Math.round(clamp(model.goal.lit, 0, 1) * 12), ghost: model.stages.length ? 0 : 1,
         hue: model.hue, sat: pale ? 78 : 82, lum: pale ? 60 : 66, light: pale, alpha: 1, labels: null, font: famBody, labelOut: null });
     }
     function dieLoop(tm) {

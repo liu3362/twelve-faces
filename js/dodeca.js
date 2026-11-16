@@ -14,7 +14,7 @@
  *   gloss 0..1   soft shading on every patch, a rim and a glint (default 1 when round > 0, else 0)
  *   mode         'stars' draws the twelve faces as twelve stars joined into a constellation instead
  *   labels       up to 12 short texts printed on the faces (see "words on the faces" below); font = font family; labelOut = {} receives .front and .hits (Dodeca.hit(labelOut, x, y) says which text is under a point)
- * Dodeca.styleOf(id) deals a look to each die, evenly (a new die gets the look used least so far) and keeps it in this browser (tf-looks), so a die looks the same
+ * Dodeca.styleOf(id, long) deals a look to each die, evenly (a new die gets the look used least so far) and keeps it in this browser (tf-looks), so a die looks the same
  * on the road, in the universe and in the corner orb. Add ?dice=C to the address to force one look, ?dice=new to deal everything again. */
 (function (global) {
   'use strict';
@@ -259,6 +259,7 @@
     F: { zh: '圆角顶点', en: 'Rounded corners', p: { axis: 'face', tilt: 0.5, blunt: 0.26, dwell: 0.5, gloss: 0.2 }, crys: true }
   };
   var KEYS = ['A', 'B', 'C', 'D', 'E', 'F'], LKEY = 'tf-looks', got = null, forced = null;
+  var LONG = 'E', LONG_DAYS = 1095;                           // three years or more is the twelve stars: a long road ahead looks like a sky of stars, and no other die gets that look
   try {
     var mm = /[?&]dice=([A-Za-z])(?![A-Za-z])/.exec(global.location.search); if (mm && STYLES[mm[1].toUpperCase()]) forced = mm[1].toUpperCase();
     if (/[?&]dice=new\b/i.test(global.location.search)) global.localStorage.removeItem(LKEY);          // ?dice=new deals every die again
@@ -269,12 +270,14 @@
     try { var v = JSON.parse(global.localStorage.getItem(LKEY) || '{}'); for (var k in v) if (STYLES[v[k]]) got[k] = v[k]; } catch (e) {}
     return got;
   }
-  function styleOf(id) {                                     // a new die gets the look used least so far (ties at random), so all six stay evenly mixed
+  function isLong(days) { return days >= LONG_DAYS; }        // a goal or plan this many days long (three years)
+  function styleOf(id, long) {                               // `long`: the die stands for something three years or more long. It always has the twelve stars; the others share the other five looks, evenly
     if (forced) return forced;
-    var s = saved(); if (s[id]) return s[id];
-    var n = {}, k, best = [], low = 1e9;
-    KEYS.forEach(function (q) { n[q] = 0; }); for (k in s) n[s[k]]++;
-    KEYS.forEach(function (q) { if (n[q] < low) { low = n[q]; best = [q]; } else if (n[q] === low) best.push(q); });
+    if (long) return LONG;
+    var s = saved(); if (s[id] && s[id] !== LONG) return s[id];
+    var n = {}, k, best = [], low = 1e9, pool = KEYS.filter(function (q) { return q !== LONG; });
+    pool.forEach(function (q) { n[q] = 0; }); for (k in s) if (k !== id && n[s[k]] != null) n[s[k]]++;      // a new die gets the look used least so far (ties at random)
+    pool.forEach(function (q) { if (n[q] < low) { low = n[q]; best = [q]; } else if (n[q] === low) best.push(q); });
     s[id] = best[Math.floor(Math.random() * best.length)];
     try { global.localStorage.setItem(LKEY, JSON.stringify(s)); } catch (e) {}
     return s[id];
@@ -569,5 +572,5 @@
     }
     return best;
   }
-  global.Dodeca = { paint: paint, hit: hitLabel, vertices: DV, faces: DF, orientations: ORI, styles: STYLES, styleKeys: KEYS, styleOf: styleOf, look: look, reshuffle: function () { got = {}; try { global.localStorage.removeItem(LKEY); } catch (e) {} }, forced: function () { return forced; } };
+  global.Dodeca = { paint: paint, hit: hitLabel, vertices: DV, faces: DF, orientations: ORI, styles: STYLES, styleKeys: KEYS, styleOf: styleOf, isLong: isLong, longStyle: LONG, longDays: LONG_DAYS, look: look, reshuffle: function () { got = {}; try { global.localStorage.removeItem(LKEY); } catch (e) {} }, forced: function () { return forced; } };
 })(window);

@@ -5,71 +5,8 @@
   var list = document.getElementById('provList');
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
-  function render() {
-    var cfg = AI.config();
-    list.textContent = '';
-    cfg.order.forEach(function (id, idx) {
-      var p = AI.byId[id], c = cfg.p[id];
-      var card = el('div', 'prov' + (c.on && c.key ? ' on' : ''));
-
-      var head = el('div', 'prov-head');
-      var lab = el('label', 'prov-name');
-      var cb = el('input'); cb.type = 'checkbox'; cb.checked = c.on;
-      cb.addEventListener('change', function () { AI.set(id, { on: cb.checked }); render(); changed(); });
-      lab.appendChild(cb); lab.appendChild(document.createTextNode(' ' + (idx + 1) + '. ' + p.name));
-      head.appendChild(lab);
-      var mv = el('span', 'prov-move');
-      var up = el('button', 'mini', '↑'); up.type = 'button'; up.disabled = idx === 0; up.setAttribute('aria-label', t('prov.up'));
-      var dn = el('button', 'mini', '↓'); dn.type = 'button'; dn.disabled = idx === cfg.order.length - 1; dn.setAttribute('aria-label', t('prov.down'));
-      up.addEventListener('click', function () { AI.move(id, -1); render(); changed(); });
-      dn.addEventListener('click', function () { AI.move(id, 1); render(); changed(); });
-      mv.appendChild(up); mv.appendChild(dn); head.appendChild(mv);
-      card.appendChild(head);
-
-      var info = el('p', 'prov-info', p.free + t('prov.official'));
-      if (p.keyUrl) { info.appendChild(document.createTextNode(' · ')); var a = el('a', '', t('prov.getKey')); a.href = p.keyUrl; a.target = '_blank'; a.rel = 'noopener'; info.appendChild(a); }
-      card.appendChild(info);
-
-      function field(label, value, type, onSet, listId) {
-        var row = el('label', 'prov-row');
-        row.appendChild(el('span', '', label));
-        var inp = el('input'); inp.type = type; inp.value = value; inp.autocomplete = 'off'; inp.spellcheck = false;
-        if (listId) inp.setAttribute('list', listId);
-        inp.addEventListener('change', function () { onSet(inp.value); changed(); card.classList.toggle('on', AI.config().p[id].on && !!AI.config().p[id].key); cb.checked = AI.config().p[id].on; });
-        row.appendChild(inp);
-        card.appendChild(row);
-        return inp;
-      }
-      if (p.custom) field(t('prov.base'), c.base, 'url', function (v) { AI.set(id, { base: v }); }).placeholder = t('prov.basePh');
-      var key = field(t('prov.key'), c.key, 'password', function (v) { AI.set(id, { key: v }); });
-      key.placeholder = t('prov.keyPh');
-      var dl = el('datalist'); dl.id = 'models-' + id;
-      p.models.forEach(function (m) { var o = el('option'); o.value = m; dl.appendChild(o); });
-      card.appendChild(dl);
-      var model = field(t('prov.model'), c.model, 'text', function (v) { AI.set(id, { model: v }); }, dl.id);
-      model.placeholder = t(p.id === 'openrouter' ? 'prov.modelPhFree' : 'prov.modelPh');
-
-      var foot = el('div', 'prov-foot');
-      var show = el('button', 'mini', t('prov.show')); show.type = 'button';
-      show.addEventListener('click', function () { key.type = key.type === 'password' ? 'text' : 'password'; show.textContent = t(key.type === 'password' ? 'prov.show' : 'prov.hide'); });
-      var tb = el('button', 'mini', t('prov.test')); tb.type = 'button';
-      var res = el('span', 'prov-res');
-      tb.addEventListener('click', function () {
-        AI.set(id, { key: key.value, model: model.value });
-        tb.disabled = true; res.className = 'prov-res'; res.textContent = t('prov.testing');
-        AI.test(id).then(function (r) {
-          tb.disabled = false;
-          res.className = 'prov-res ' + (r.ok ? 'ok' : 'bad');
-          res.textContent = r.ok ? t('prov.ok', { s: (r.ms / 1000).toFixed(1) }) : r.msg;
-          changed();
-        });
-      });
-      foot.appendChild(show); foot.appendChild(tb); foot.appendChild(res);
-      card.appendChild(foot);
-      list.appendChild(card);
-    });
-  }
-  function changed() { document.dispatchEvent(new CustomEvent('ai-config')); }
+  function render() { AISetup.render(list); }                       // the list of platforms is shared with the plan pages (js/ai-setup.js)
+  function changed() { AISetup.changed(); }
 
   /* ---------- 备份：只备份学习数据，不含密钥 ---------- */
   function backup() {

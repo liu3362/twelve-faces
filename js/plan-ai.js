@@ -4,6 +4,7 @@
  *   PlanAI.check(plan, i, item, signal)   -> { v: 'right'|'partly'|'wrong', fb, model }
  *   PlanAI.split(plan, i, k, signal)      -> [{title, goal, days}]
  *   PlanAI.ask(plan, i, history, onText, signal) -> the answer text (streamed through onText)
+ *   PlanAI.method({text, name}, signal)   -> { ok, reason, name, sum, steps: [text], d: [domain ids] }   a way of studying or working, written up from text pasted off the web or from just its name
  * The AI never gives web addresses: for books, videos and courses it names them, and the page builds the search links itself.
  * (Prompts live in the language packs as pl.sys and pl.p.*) */
 (function (global) {
@@ -58,6 +59,8 @@
   /* ---------- one stage in detail ---------- */
   function draft(plan, i, want, signal) {
     var s = plan.steps[i], ds = PD.dates(plan)[i], parts = [], have = [];
+    var meth = arr(plan.models).concat(arr(s.models)).slice(0, 6);                      // methods the person chose: the steps should follow them where it fits
+    if (meth.length) have.push(t('pl.p.useMethods', { list: meth.map(function (m) { return m.name + ' (' + arr(m.steps).slice(0, 6).join(' / ') + ')'; }).join('; ') }));
     if (want.tasks && s.tasks.length) have.push(t('pl.p.haveTasks', { list: s.tasks.slice(0, 30).map(function (x) { return x.t; }).join('; ') }));
     if (want.res && s.res.length) have.push(t('pl.p.haveRes', { list: s.res.slice(0, 20).map(function (x) { return x.title; }).join('; ') }));
     if (want.practice && s.practice.length) have.push(t('pl.p.havePractice', { list: s.practice.slice(0, 20).map(function (x) { return x.q.replace(/\s+/g, ' ').slice(0, 80); }).join(' | ') }));
@@ -123,5 +126,18 @@
     return AI.chat({ system: sys, messages: history.slice(-8), maxTokens: 2000, signal: signal, idleMs: 60000, onText: onText }).then(function (r) { return r.text; });
   }
 
-  global.PlanAI = { outline: outline, draft: draft, check: check, split: split, ask: ask, stageRange: stageRange };
+  /* ---------- a method (a way of studying or working), from text pasted off the web or from just its name ---------- */
+  function method(o, signal) {
+    var ids = []; (global.PlanModels ? global.PlanModels.domains() : []).forEach(function (d) { ids.push(d.id); d.sub.forEach(function (x) { ids.push(x.id); }); });
+    var prompt = t('pl.p.method', { name: line(o.name, 80) || t('none'), text: String(o.text || '').trim().slice(0, 6000) || t('none'), domains: ids.join(', '), lang: lang() });
+    return run(prompt, { max: 2500, signal: signal, think: false }).then(function (raw) {
+      if (raw && raw.ok === false) return { ok: false, reason: line(raw.reason, 240) };
+      var steps = arr(raw && raw.steps).map(function (x) { return line(x && x.t != null ? x.t : x, 240); }).filter(Boolean).slice(0, 12), name = line(raw && raw.name, 80);
+      if (!name || steps.length < 2) throw bad();
+      var d = arr(raw.domains || raw.d).map(function (x) { return String(x == null ? '' : x).toLowerCase(); }).filter(function (x) { return ids.indexOf(x) >= 0; }).slice(0, 3);
+      return { ok: true, name: name, sum: line(raw.summary || raw.sum, 400), steps: steps, d: d.length ? d : ['gen'] };
+    });
+  }
+
+  global.PlanAI = { outline: outline, draft: draft, check: check, split: split, ask: ask, method: method, stageRange: stageRange };
 })(window);

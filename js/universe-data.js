@@ -45,7 +45,7 @@
     [-60, -24, 'study', 190, null], [-45, -8, 'life', 35, null],                                       // just behind you
     [-58, 90, 'goal', 12, 0.55], [-34, 110, 'study', 215, null], [-12, 700, 'goal', 155, 0.08], [-20, 400, 'life', 330, null],   // under way now
     [20, 140, 'study', 75, null], [60, 330, 'goal', 48, null], [200, 520, 'goal', 255, null],           // soon
-    [420, 1250, 'life', 290, null], [800, 1100, 'study', 100, null], [1000, 1800, 'goal', 22, null]     // further on
+    [420, 1250, 'life', 290, null], [800, 1100, 'study', 100, null], [700, 1900, 'goal', 22, null]      // further on (this one is over three years long: it gets the twelve stars)
   ];
   function sample() {
     return EX.map(function (e, i) {

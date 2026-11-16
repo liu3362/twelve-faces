@@ -96,7 +96,7 @@
       var dpr = Math.min(2, global.devicePixelRatio || 1), px = Math.round(w * dpr);
       if (die.width !== px) { die.width = px; die.height = px; }
       var c = die.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, w);
-      Dodeca.paint(c, { x: w / 2, y: w / 2, r: w * 0.43, spin: 0.6 + (U.reduced ? 0 : tm * 0.00028), style: Dodeca.styleOf('p:' + plan.id), hl: 0, lit: Math.round(PD.stageFill(plan, idx) * 12), hue: 46, sat: 94, lum: 62, light: false, alpha: 1 });
+      Dodeca.paint(c, { x: w / 2, y: w / 2, r: w * 0.43, spin: 0.6 + (U.reduced ? 0 : tm * 0.00028), style: Dodeca.styleOf('p:' + plan.id, Dodeca.isLong(PD.totalDays(plan))), hl: 0, lit: Math.round(PD.stageFill(plan, idx) * 12), hue: 46, sat: 94, lum: 62, light: false, alpha: 1 });
     }
     function dieLoop(tm) { S.dieRaf = 0; if (S.dead || !die.isConnected) return; if (!document.hidden) paintDie(tm); if (!U.reduced) S.dieRaf = requestAnimationFrame(dieLoop); }
     /* the next thing to do, in one line on the colour block: the first step not yet checked; once the stage is done, the stage after it */
@@ -127,7 +127,9 @@
     function showStatus() { [].forEach.call(stat.children, function (b) { b.setAttribute('aria-pressed', b.dataset.st === s.status ? 'true' : 'false'); }); ribbon.children[idx].className = (s.status === 'done' ? 'done ' : '') + 'cur'; drawHero(); }
     meta.append(dateEl, lenWrap, stat); hbody.append(meta, nx); head.append(die, hbody, num);
     var noAi = null;
-    if (!U.aiReady()) { noAi = el('p', 'pl-note'); noAi.append(el('span', '', t('pl.s.noAi'))); var go = el('a', 'pl-btn sm'); go.href = 'index.html'; go.textContent = t('pl.s.noAiGo'); noAi.appendChild(go); }
+    if (!U.aiReady()) noAi = U.aiNote(t('pl.s.noAi'));                                  // the button opens the AI settings right here
+    function onAi() { if (noAi && U.aiReady()) { noAi.remove(); noAi = null; } }          // once an AI is set up the note goes away
+    document.addEventListener('ai-config', onAi);
 
     /* ---------- one place for every "ask the AI" ---------- */
     function runAI(host, label, start, onOk) {
@@ -138,7 +140,7 @@
       start(S.ctl.signal).then(function (r) { S.busy = false; S.ctl = null; if (S.dead) return; host.textContent = ''; onOk(r); },
         function (e) { S.busy = false; S.ctl = null; if (S.dead) return; host.textContent = ''; if (e && e.code === 'cancelled') return; host.className = 'ai-msg bad'; host.textContent = U.aiFail(e); });
     }
-    function aiBtn(label, cls, fn) { var b = btn(label, cls, fn, 'ai'); if (!U.aiReady()) { b.disabled = true; b.title = t('pl.s.noAi'); } return b; }
+    function aiBtn(label, cls, fn) { var b = btn(label, cls, function () { U.withAi(fn); }, 'ai'); if (!U.aiReady()) b.title = t('pl.s.noAiTip'); return b; }      // with no AI set up, the button opens the setup, then does its job
 
     /* ================= the goal ================= */
     var goalSec = sec('secGoal', t('pl.s.goal'), 'flag', t('pl.s.j.goal')), goalTa = el('textarea', 'pl-ta'), goalMsg = el('span', 'ai-msg');
@@ -237,6 +239,37 @@
       var foot = el('div', 'pl-dfoot'); foot.appendChild(btn(t('pl.cancel'), 'ghost', U.closeDialog)); var ok = el('button', 'pl-btn main', t('pl.s.putGo')); ok.type = 'submit'; foot.appendChild(ok); f.appendChild(foot);
       f.addEventListener('submit', function (e) { e.preventDefault(); plan.face = sel.value; PD.save(); U.closeDialog(); go(plan.face); });
       U.openDialog(f);
+    }
+
+    /* ================= the way of working: methods ================= */
+    var methSec = sec('secMeth', t('pl.s.meth'), 'idea', t('pl.s.j.meth')), methBody = methSec.body;
+    function methodsToTasks(m) {                                                                     // a method's steps become steps of this stage (the ones already there are left alone)
+      var have = {}, n = 0; s.tasks.forEach(function (x) { have[x.t.toLowerCase()] = 1; });
+      m.steps.forEach(function (z) { var k = z.toLowerCase(); if (!have[k]) { have[k] = 1; s.tasks.push({ id: PD.uid('t'), t: z.slice(0, 240), done: false }); n++; } });
+      if (n) { PD.save(); renderTasks(); drawGoalRow(); }
+      U.toast(n ? t('pl.me.used', { n: n }) : t('pl.me.usedNone'));
+    }
+    function renderMeth() {
+      methBody.textContent = ''; methSec.count((s.models.length + plan.models.length) || '');
+      var use = function (m) { return btn(t('pl.me.use'), 'sm', function () { methodsToTasks(m); }, 'steps'); };
+      if (!s.models.length && !plan.models.length) methBody.appendChild(el('p', 'hint', t('pl.s.methHint')));
+      s.models.forEach(function (m) {
+        methBody.appendChild(PlanModelsUI.card(m, { actions: [use(m), btn('', 'ghost sm icon', function () { s.models = s.models.filter(function (x) { return x.id !== m.id; }); PD.save(); renderMeth(); }, 'x', t('pl.me.remove'))] }));
+      });
+      if (plan.models.length) {                                                                      // the plan's own methods apply here too
+        methBody.appendChild(el('h3', 'pl-mh', t('pl.s.methPlan')));
+        plan.models.forEach(function (m) { methBody.appendChild(PlanModelsUI.card(m, { actions: [use(m)] })); });
+      }
+      var row = el('div', 'ai-row'); row.appendChild(btn(t('pl.s.methAdd'), 'sm', openMeth, 'plus')); methBody.appendChild(row);
+    }
+    function openMeth() {
+      PlanModelsUI.openLibrary({
+        scope: 'stage', name: (idx + 1) + '. ' + (s.title || t('pl.untitled')), context: [plan.title, plan.level, s.title, s.goal].join(' '),
+        have: function () { return s.models; },
+        onAdd: function (m) { if (!s.models.some(function (x) { return x.id === m.id; }) && s.models.length < 12) { s.models.push(m); PD.save(); } },
+        onRemove: function (id) { s.models = s.models.filter(function (x) { return x.id !== id; }); PD.save(); },
+        onClose: renderMeth
+      });
     }
 
     /* ================= what to read, watch and use ================= */
@@ -393,9 +426,9 @@
     var askSec = sec('secAsk', t('pl.s.ask'), 'ai', t('pl.s.j.ask')), chat = el('div', 'pl-chat'), askForm = el('form', 'pl-addrow'), askTa = el('textarea', 'pl-ta'), askMsg = el('span', 'ai-msg');
     askTa.rows = 2; askTa.placeholder = t('pl.s.askPh'); askTa.maxLength = 1500; askTa.setAttribute('aria-label', t('pl.s.ask')); askTa.style.minHeight = '48px';
     var askGo = el('button', 'pl-btn main'); askGo.type = 'submit'; askGo.appendChild(ic('ai', 15)); askGo.appendChild(document.createTextNode(t('pl.s.askGo')));
-    if (!U.aiReady()) { askGo.disabled = true; askGo.title = t('pl.s.noAi'); }
+    if (!U.aiReady()) askGo.title = t('pl.s.noAiTip');
     askForm.append(askTa, askGo); askForm.style.alignItems = 'flex-end';
-    var quick = el('div', 'pl-chips'); [1, 2, 3].forEach(function (k) { var c = el('button', 'pl-chip', t('pl.s.q' + k)); c.type = 'button'; c.addEventListener('click', function () { askTa.value = t('pl.s.q' + k); if (!askGo.disabled) askForm.requestSubmit(); }); quick.appendChild(c); });
+    var quick = el('div', 'pl-chips'); [1, 2, 3].forEach(function (k) { var c = el('button', 'pl-chip', t('pl.s.q' + k)); c.type = 'button'; c.addEventListener('click', function () { askTa.value = t('pl.s.q' + k); askForm.requestSubmit(); }); quick.appendChild(c); });
     function drawChat() {
       chat.textContent = '';
       S.chat.forEach(function (m, k) {
@@ -411,6 +444,7 @@
     }
     askForm.addEventListener('submit', function (e) {
       e.preventDefault(); var q = askTa.value.trim(); if (!q || S.busy) return;
+      if (!U.aiReady()) { U.openAiSetup(function (ok) { if (ok && !S.dead) askForm.requestSubmit(); }); return; }          // (what was typed stays in the box)
       S.chat.push({ role: 'user', content: q }); var a = { role: 'assistant', content: '', live: true }; S.chat.push(a); askTa.value = ''; drawChat();
       var hist = S.chat.slice(0, -1).map(function (m) { return { role: m.role, content: m.content }; });
       S.busy = true; S.ctl = new AbortController(); askMsg.textContent = ''; askMsg.className = 'ai-msg'; askMsg.append(el('span', 'pl-spin'), document.createTextNode(' ' + t('pl.s.thinking') + ' '), btn(t('pl.cancel'), 'sm ghost', function () { if (S.ctl) S.ctl.abort(); }));
@@ -436,9 +470,9 @@
 
     /* ---------- put the page together ---------- */
     var cols = el('div', 'pl-cols'), a = el('div', 'pl-col'), b = el('div', 'pl-col');
-    [goalSec, tasksSec, pracSec, noteSec].forEach(function (x) { a.appendChild(x.box); });
+    [goalSec, tasksSec, methSec, pracSec, noteSec].forEach(function (x) { a.appendChild(x.box); });
     [resSec, resultSec, logSec, askSec].forEach(function (x) { b.appendChild(x.box); });
-    var order = [goalSec, tasksSec, resSec, pracSec, noteSec, resultSec, logSec, askSec];            // the order on a narrow screen, where the two columns become one
+    var order = [goalSec, tasksSec, methSec, resSec, pracSec, noteSec, resultSec, logSec, askSec];            // the order on a narrow screen, where the two columns become one
     order.forEach(function (x, i) { x.box.style.order = i + 1; PlanColor.setHue(x.box, hh); });
     cols.append(a, b);
     var jump = el('nav', 'pl-jump'); jump.setAttribute('aria-label', t('pl.s.jump'));
@@ -449,13 +483,13 @@
       jump.appendChild(c);
     });
     main.append(nav, ribbon, head); if (noAi) main.appendChild(noAi); main.append(jump, cols, danger);
-    drawGoalRow(); renderTasks(); renderRes(); renderPrac(); renderResults(); renderLog(); drawChat();
+    drawGoalRow(); renderTasks(); renderMeth(); renderRes(); renderPrac(); renderResults(); renderLog(); drawChat();
     // coming from a link such as #/p/<id>/s/<id>, the page starts at the top
     requestAnimationFrame(function () { if (U.reduced) paintDie(0); else if (!S.dead && !S.dieRaf) S.dieRaf = requestAnimationFrame(dieLoop); });
 
     return function () {
       S.dead = true; if (S.dieRaf) cancelAnimationFrame(S.dieRaf); if (S.ctl) S.ctl.abort(); clearTimeout(S.sv); saveSoon.cancel(); flush();
-      document.removeEventListener('visibilitychange', onHide); window.removeEventListener('pagehide', flush); window.removeEventListener('resize', fitTitle);
+      document.removeEventListener('ai-config', onAi); document.removeEventListener('visibilitychange', onHide); window.removeEventListener('pagehide', flush); window.removeEventListener('resize', fitTitle);
     };
   }
 

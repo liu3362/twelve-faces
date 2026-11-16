@@ -1,8 +1,10 @@
 /* plan-data.js — the long-range plans: one big goal cut into dozens of stages, like a syllabus.
- * A plan:  { id, title, start, target, hours, level, note, hue, created, face, summary, ex, steps: [stage] }
+ * A plan:  { id, title, start, target, hours, level, note, hue, created, face, summary, ex, models: [method], steps: [stage] }
  * A stage: { id, title, phase, days, goal, status: 'todo'|'doing'|'done', doneOn,
  *            tasks: [{id, t, done}], res: [{id, kind, title, note, url, q}], practice: [{id, q, hint, a, fb, model, v}],
- *            notes, results: [{id, text, url, date}], log: [{id, date, min, text}] }
+ *            notes, results: [{id, text, url, date}], log: [{id, date, min, text}], models: [method] }
+ * A method (a way of studying or working, copied into the plan or stage that uses it, so a shared plan carries them):
+ *            { id, name, sum, steps: [text], d: [domain ids like 'sci.phys'], src: url, more: pasted text, by: 'lib'|'own'|'web'|'ai' }
  * Stages are chained: a stage lasts `days` and the next one starts the day after, so inserting, deleting, moving or resizing a stage moves everything after it
  * (dates are worked out from plan.start and the durations, never stored). Phases are just a name on each stage; neighbours with the same name form a phase.
  * Kept on this device (localStorage "tf-plans"). Nothing here touches the page, so it can be tested on its own. */
@@ -24,6 +26,21 @@
   function arr(v) { return Array.isArray(v) ? v : []; }
 
   /* ---------- cleaning (everything read from storage or an import goes through here) ---------- */
+  var DOM_RE = /^[a-z]{2,5}(\.[a-z]{2,8})?$/, BY = ['lib', 'own', 'web', 'ai'];
+  function cleanModel(m) {
+    m = m || {};
+    var seen = {};
+    return {
+      id: m.id ? String(m.id).slice(0, 40) : uid('m'), name: line(m.name, 80), sum: line(m.sum, 400),
+      steps: arr(m.steps).map(function (x) { return line(x, 240); }).filter(Boolean).slice(0, 15),
+      d: arr(m.d).map(function (x) { return String(x == null ? '' : x).toLowerCase(); }).filter(function (x) { if (!DOM_RE.test(x) || seen[x]) return false; seen[x] = 1; return true; }).slice(0, 4),
+      src: url(m.src), more: str(m.more, 4000), by: BY.indexOf(m.by) >= 0 ? m.by : 'own'
+    };
+  }
+  function cleanModels(v, max) {
+    var seen = {};
+    return arr(v).map(cleanModel).filter(function (m) { if (!m.name || seen[m.id]) return false; seen[m.id] = 1; return true; }).slice(0, max);
+  }
   function cleanStage(s) {
     s = s || {};
     var st = STATUS.indexOf(s.status) >= 0 ? s.status : 'todo';
@@ -38,7 +55,8 @@
       notes: str(s.notes, 30000),
       results: arr(s.results).map(function (x) { x = x || {}; return { id: x.id ? String(x.id).slice(0, 40) : uid('z'), text: str(x.text, 1200), url: url(x.url), date: isoOk(x.date) ? x.date : '' }; })
         .filter(function (x) { return x.text.trim() || x.url; }).slice(0, 300),
-      log: arr(s.log).map(function (x) { x = x || {}; return { id: x.id ? String(x.id).slice(0, 40) : uid('l'), date: isoOk(x.date) ? x.date : today(), min: int(x.min, 0, 1440, 0), text: line(x.text, 300) }; }).slice(0, 500)
+      log: arr(s.log).map(function (x) { x = x || {}; return { id: x.id ? String(x.id).slice(0, 40) : uid('l'), date: isoOk(x.date) ? x.date : today(), min: int(x.min, 0, 1440, 0), text: line(x.text, 300) }; }).slice(0, 500),
+      models: cleanModels(s.models, 12)
     };
   }
   function cleanPlan(p) {
@@ -46,7 +64,7 @@
     return {
       id: p.id ? String(p.id).slice(0, 40) : uid('p'), title: line(p.title, 100), start: isoOk(p.start) ? p.start : today(), target: isoOk(p.target) ? p.target : '',
       hours: int(p.hours, 1, 80, 6), level: str(p.level, 400), note: str(p.note, 800), hue: int(p.hue, 0, 359, 185), created: isoOk(p.created) ? p.created : today(),
-      face: line(p.face, 60), summary: str(p.summary, 400), ex: !!p.ex, steps: arr(p.steps).slice(0, 400).map(cleanStage)
+      face: line(p.face, 60), summary: str(p.summary, 400), ex: !!p.ex, models: cleanModels(p.models, 30), steps: arr(p.steps).slice(0, 400).map(cleanStage)
     };
   }
 
@@ -67,7 +85,7 @@
   function get(id) { var a = S().plans; for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
   function create(o) {
     o = o || {};
-    var p = cleanPlan({ title: o.title, start: o.start || today(), target: o.target, hours: o.hours, level: o.level, note: o.note, face: o.face, hue: o.hue != null ? o.hue : HUES[S().plans.length % HUES.length], steps: o.steps || [], summary: o.summary, ex: o.ex });
+    var p = cleanPlan({ title: o.title, start: o.start || today(), target: o.target, hours: o.hours, level: o.level, note: o.note, face: o.face, hue: o.hue != null ? o.hue : HUES[S().plans.length % HUES.length], steps: o.steps || [], models: o.models, summary: o.summary, ex: o.ex });
     S().plans.push(p); save(); return p;
   }
   function remove(id) { S().plans = S().plans.filter(function (p) { return p.id !== id; }); save(); }
@@ -185,7 +203,7 @@
   function replaceStage(plan, id, parts) {
     var i = indexOf(plan, id); if (i < 0 || !parts.length) return false;
     var old = plan.steps[i], total = old.days;
-    var ps = parts.map(function (p) { return cleanStage({ title: p.title, goal: p.goal, days: p.days || 1, phase: old.phase }); });
+    var ps = parts.map(function (p) { return cleanStage({ title: p.title, goal: p.goal, days: p.days || 1, phase: old.phase, models: old.models }); });          // the way of working carries on into each part
     if (ps.length > total) total = ps.length;
     fitDays(ps, total);
     plan.steps.splice.apply(plan.steps, [i, 1].concat(ps)); save(); return ps;
@@ -253,9 +271,10 @@
   /* ---------- sharing an outline: what a predecessor worked out, without anyone's notes or answers ---------- */
   function exportPlan(plan, full) {
     var o = JSON.parse(JSON.stringify(plan));
-    var out = { app: 'twelve-faces', kind: 'plan', v: 1, plan: { title: o.title, hours: o.hours, level: o.level, note: o.note, summary: o.summary, hue: o.hue, steps: o.steps.map(function (s) {
+    var out = { app: 'twelve-faces', kind: 'plan', v: 1, plan: { title: o.title, hours: o.hours, level: o.level, note: o.note, summary: o.summary, hue: o.hue, models: o.models, steps: o.steps.map(function (s) {
       var r = { title: s.title, phase: s.phase, days: s.days, goal: s.goal, tasks: s.tasks.map(function (x) { return { t: x.t, done: full ? x.done : false }; }),
         res: s.res.map(function (x) { return { kind: x.kind, title: x.title, note: x.note, url: x.url, q: x.q }; }), practice: s.practice.map(function (x) { return full ? { q: x.q, hint: x.hint, a: x.a, fb: x.fb, model: x.model, v: x.v } : { q: x.q, hint: x.hint }; }) };
+      r.models = s.models;
       if (full) { r.status = s.status; r.doneOn = s.doneOn; r.notes = s.notes; r.results = s.results; r.log = s.log; }
       return r;
     }) } };
@@ -268,7 +287,7 @@
     var o = null; text = String(text || '').trim(); if (!text) return null;
     if (text.charAt(0) === '{') { try { o = JSON.parse(text); } catch (e) { o = null; } }
     if (o && o.kind === 'plan' && o.plan && Array.isArray(o.plan.steps)) {
-      var src = o.plan, p = cleanPlan({ title: src.title, hours: src.hours, level: src.level, note: src.note, summary: src.summary, hue: src.hue, steps: src.steps });
+      var src = o.plan, p = cleanPlan({ title: src.title, hours: src.hours, level: src.level, note: src.note, summary: src.summary, hue: src.hue, models: src.models, steps: src.steps });
       if (o.full) { p.start = isoOk(src.start) ? src.start : today(); p.target = isoOk(src.target) ? src.target : ''; p.face = line(src.face, 60); }
       else p.start = today();
       if (!p.steps.length) return null;
@@ -318,7 +337,7 @@
 
   global.PlanData = {
     KEY: KEY, KINDS: KINDS, HUES: HUES, load: load, save: save, list: list, get: get, create: create, remove: remove, snapshot: snapshot, restore: restore,
-    uid: uid, today: today, url: url, cleanStage: cleanStage, cleanPlan: cleanPlan, lastError: function () { return lastError; },
+    uid: uid, today: today, url: url, cleanStage: cleanStage, cleanPlan: cleanPlan, cleanModel: cleanModel, cleanModels: cleanModels, lastError: function () { return lastError; },
     dates: dates, totalDays: totalDays, endDate: endDate, dayOf: dayOf, pos: pos, hereIndex: hereIndex, calendarIndex: calendarIndex, reschedule: reschedule, fitDays: fitDays, fitToTarget: fitToTarget,
     stageFill: stageFill, progress: progress, counts: counts, minutes: minutes,
     indexOf: indexOf, addStage: addStage, removeStage: removeStage, nudge: nudge, moveStage: moveStage, dupStage: dupStage, replaceStage: replaceStage, setStatus: setStatus,

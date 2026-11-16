@@ -25,7 +25,8 @@
     grip: 'M3 5.500h10M3 10.500h10', dense: 'M3 4h10M3 8h10M3 12h10',
     sun: 'M8 5.300a2.700 2.700 0 1 0 0 5.400 2.700 2.700 0 0 0 0-5.400zM8 1.500v1.500M8 13v1.500M1.500 8H3M13 8h1.500M3.400 3.400l1 1M11.600 11.600l1 1M3.400 12.600l1-1M11.600 4.400l1-1',
     moon: 'M12.800 9.600A5.200 5.200 0 0 1 6.400 3.200a5.200 5.200 0 1 0 6.400 6.400z',
-    screen: 'M2.500 3h11v7.500h-11zM6 13h4M8 10.500V13'
+    screen: 'M2.500 3h11v7.500h-11zM6 13h4M8 10.500V13',
+    idea: 'M5.800 11.500h4.400M6.400 13.600h3.200M8 2.200a3.900 3.900 0 0 0-2.300 7c.5.400.8.900.8 1.500h3c0-.600.300-1.100.800-1.500A3.900 3.900 0 0 0 8 2.200z'
   };
   function ic(name, size) {
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -130,7 +131,7 @@
 
   /* ---------- dialogs ---------- */
   function openDialog(node, opt) {
-    dlg.textContent = ''; dlg.appendChild(node); dlg._onClose = opt && opt.onClose || null;
+    dlg.textContent = ''; dlg.appendChild(node); dlg._onClose = opt && opt.onClose || null; dlg.classList.toggle('wide', !!(opt && opt.wide));
     if (!dlg.open) dlg.showModal();
   }
   function closeDialog() { if (dlg.open) dlg.close(); }
@@ -150,6 +151,21 @@
   /* ================= the AI, in short ================= */
   function aiReady() { return AI.ready().length > 0; }
   function aiFail(e) { return e && /^(bad_json|cut|empty)$/.test(e.code) ? t('pl.ai.fail') : AI.explain(e); }
+  /* No AI set up yet? Nobody is sent back to the study room: the same list of platforms opens right here, and once an AI is ready the thing that was asked for goes ahead. */
+  function openAiSetup(after) {                                  // `after(ready)` runs when the window is closed
+    var box = el('div', 'pl-dbody'); box.appendChild(el('h2', '', t('pl.ai.setupTitle'))); box.appendChild(el('p', 'pl-dsub', t('pl.ai.setupSub')));
+    var list = el('div', 'pl-prov-list'); AISetup.render(list, { ns: 'pl-prov', btn: 'pl-btn sm', fold: true }); box.appendChild(list);
+    var foot = el('div', 'pl-dfoot'), st = el('span', 'pl-prov-state');
+    foot.append(st, btn(t('pl.ai.done'), 'main', closeDialog)); box.appendChild(foot);
+    function paint() { var ok = aiReady(); st.textContent = ok ? t('pl.ai.ready') : t('pl.ai.notYet'); st.classList.toggle('ok', ok); }
+    paint(); document.addEventListener('ai-config', paint);
+    openDialog(box, { onClose: function () { document.removeEventListener('ai-config', paint); if (after) after(aiReady()); } });
+  }
+  function withAi(fn) { if (aiReady()) { fn(); return; } openAiSetup(function (ok) { if (ok) fn(); }); }       // run fn now, or after the AI has been set up
+  function aiNote(text, again) {                                 // a line saying the AI is not set up, with the button that sets it up
+    var n = el('p', 'pl-note pl-ainote'); n.appendChild(el('span', '', text));
+    n.appendChild(btn(t('pl.ai.setup'), 'sm main', function () { openAiSetup(again); }, 'ai')); return n;
+  }
 
   /* ---------- the road's model ---------- */
   function timeMarks(plan) {
@@ -175,7 +191,7 @@
     return {
       stages: plan.steps.map(function (s, i) { return { title: s.title || t('pl.untitled'), status: s.status === 'done' ? 'done' : (i === here ? 'doing' : 'todo'), fill: PD.stageFill(plan, i), hue: hue(plan, i), from: ds[i].from, to: ds[i].to }; }),
       phases: PD.phases(plan).filter(function (p) { return p.name; }), marks: timeMarks(plan), here: here, hue: plan.hue, seed: plan.id,
-      goal: { lit: PD.progress(plan), text: fmtD(end, true), sub: left > 0 ? fmtDur(left) : t('pl.pastEnd') }
+      goal: { lit: PD.progress(plan), text: fmtD(end, true), sub: left > 0 ? fmtDur(left) : t('pl.pastEnd'), long: Dodeca.isLong(PD.totalDays(plan)) }
     };
   }
 
@@ -332,7 +348,7 @@
   var draft = { title: '', end: '', hours: '8', level: '', note: '', text: '', how: 'ai' };
   function isoPlus(days) { return GM.iso(GM.addDays(GM.startOfToday(), days)); }
   function openCreate(how) {
-    if (how) draft.how = how; else if (!aiReady() && draft.how === 'ai') draft.how = 'blank';
+    if (how) draft.how = how;
     var ctl = null;
     var f = el('form'); f.noValidate = true;
     f.appendChild(el('h2', '', t('pl.new.title')));
@@ -348,11 +364,16 @@
     var fEnd = el('div', 'pl-f'), lE = el('label', 'pl-lbl', t('pl.f.end')), iE = el('input', 'pl-in'); iE.type = 'date'; iE.id = 'plfEnd'; lE.htmlFor = 'plfEnd'; iE.value = draft.end;
     var chips = el('div', 'pl-chips');
     [[182, 'pl.c.6m'], [365, 'pl.c.1y'], [730, 'pl.c.2y'], [1095, 'pl.c.3y'], [1825, 'pl.c.5y']].forEach(function (c) {
-      var b = el('button', 'pl-chip', t(c[1])); b.type = 'button'; b.addEventListener('click', function () { iE.value = isoPlus(c[0]); draft.end = iE.value; }); chips.appendChild(b);
+      var b = el('button', 'pl-chip', t(c[1])); b.type = 'button'; b.addEventListener('click', function () { iE.value = isoPlus(c[0]); draft.end = iE.value; longHint(); }); chips.appendChild(b);
     });
     fEnd.append(lE, iE, chips);
+    var hint3 = el('p', 'pl-small pl-long');                                                                  // three years or more is the twelve stars: said while the date is being chosen
+    function longHint() {
+      var e = GM.parse(iE.value), today = GM.startOfToday(), long = !!(e && e > today) && Dodeca.isLong(GM.nDays(today, e) + 1);
+      hint3.textContent = t(long ? 'pl.long.is' : 'pl.long.not'); hint3.classList.toggle('on', long);
+    }
     var fHrs = el('div', 'pl-f'), lH = el('label', 'pl-lbl', t('pl.f.hours')), iH = el('input', 'pl-in'); iH.type = 'number'; iH.min = 1; iH.max = 80; iH.inputMode = 'numeric'; iH.id = 'plfHours'; lH.htmlFor = 'plfHours'; iH.value = draft.hours; fHrs.append(lH, iH);
-    var row2 = el('div', 'pl-f2'); row2.append(fEnd, fHrs); f.appendChild(row2);
+    var row2 = el('div', 'pl-f2'); row2.append(fEnd, fHrs); f.appendChild(row2); f.appendChild(hint3); longHint(); iE.addEventListener('input', longHint); iE.addEventListener('change', longHint);
     var fLvl = el('div', 'pl-f'), lL = el('label', 'pl-lbl', t('pl.f.level')), iL = el('input', 'pl-in'); iL.type = 'text'; iL.maxLength = 300; iL.id = 'plfLevel'; lL.htmlFor = 'plfLevel'; iL.placeholder = t('pl.f.levelPh'); iL.value = draft.level; fLvl.append(lL, iL); f.appendChild(fLvl);
     var fNote = el('div', 'pl-f'), lN = el('label', 'pl-lbl', t('pl.f.note')), iN = el('textarea', 'pl-ta'); iN.rows = 2; iN.maxLength = 700; iN.id = 'plfNote'; lN.htmlFor = 'plfNote'; iN.placeholder = t('pl.f.notePh'); iN.value = draft.note; fNote.append(lN, iN); f.appendChild(fNote);
     var fText = el('div', 'pl-f'), lX = el('label', 'pl-lbl', t('pl.f.text')), iX = el('textarea', 'pl-ta'); iX.rows = 8; iX.id = 'plfText'; lX.htmlFor = 'plfText'; iX.placeholder = t('pl.f.textPh'); iX.value = draft.text; iX.style.fontFamily = 'var(--f-mono)'; iX.style.fontSize = '13px';
@@ -361,7 +382,7 @@
     file.addEventListener('change', function () { var fl = file.files && file.files[0]; if (!fl) return; var r = new FileReader(); r.onload = function () { iX.value = String(r.result || ''); draft.text = iX.value; }; r.readAsText(fl); });
     fText.append(lX, iX, el('p', 'pl-small', t('pl.f.textHelp')), fb, file); f.appendChild(fText);
     var err = el('p', 'pl-err'); err.setAttribute('role', 'alert'); f.appendChild(err);
-    var noAi = el('p', 'pl-small', t('pl.noAi')); f.appendChild(noAi);
+    var noAi = aiNote(t('pl.noAi'), function () { openCreate(); }); f.appendChild(noAi);                     // (what you typed is kept in `draft`, so the form comes back as you left it)
     var foot = el('div', 'pl-dfoot'); foot.appendChild(btn(t('pl.cancel'), 'ghost', closeDialog));
     var go = el('button', 'pl-btn main'); go.type = 'submit'; foot.appendChild(go); f.appendChild(foot);
     function sync() {
@@ -390,7 +411,7 @@
         draft = { title: '', end: '', hours: '8', level: '', note: '', text: '', how: 'ai' }; closeDialog(); location.hash = '#/p/' + p0.id; return;
       }
       if (!end || end <= today) { err.textContent = t('pl.err.date'); iE.focus(); return; }
-      if (!aiReady()) { err.textContent = t('pl.noAi'); return; }
+      if (!aiReady()) { openAiSetup(function (ok) { openCreate(); if (ok) setTimeout(function () { var s = dlg.querySelector('form'); if (s) s.requestSubmit(); }, 40); }); return; }
       var days = GM.nDays(today, end) + 1;
       // working: the dialog turns into a progress panel
       var box = el('div', 'pl-dbody'); dlg._locked = true;
@@ -454,6 +475,16 @@
     applyRoadH();
 
     /* ---------- the top of the panel: title, the finish line, and what you can do with the whole plan ---------- */
+    /* the methods (ways of studying or working) that apply to the whole plan: the library window, with what is chosen kept in the plan */
+    function openPlanMethods() {
+      PlanModelsUI.openLibrary({
+        scope: 'plan', name: plan.title || t('pl.untitled'), context: [plan.title, plan.level, plan.note].join(' '),
+        have: function () { return plan.models; },
+        onAdd: function (m) { if (!plan.models.some(function (x) { return x.id === m.id; })) { plan.models.push(m); PD.save(); } },
+        onRemove: function (id) { plan.models = plan.models.filter(function (x) { return x.id !== id; }); PD.save(); },
+        onClose: function () { buildHead(); }
+      });
+    }
     function buildHead() {
       head.textContent = '';
       head.appendChild(el('h1', 'pl-ptitle', plan.title || t('pl.untitled')));
@@ -468,11 +499,12 @@
       var act = el('div', 'pl-pact');
       act.appendChild(btn(t('pl.editPlan'), '', function () { openEditPlan(plan, refreshAll); }, 'edit'));
       act.appendChild(btn(t('pl.share'), '', function () { openShare(plan); }, 'down2'));
+      act.appendChild(btn(plan.models.length ? t('pl.me.btnN', { n: plan.models.length }) : t('pl.me.btn'), '', openPlanMethods, 'idea'));
       var more = btn('', 'icon', null, 'more', t('pl.more')); more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
       more.addEventListener('click', function () {
         menu(more, [
           { label: t('pl.m.today'), icon: 'flag', fn: function () { withUndo(plan, t('pl.rescheduled'), function () { PD.reschedule(plan); refreshAll(); }, refreshAll); } },
-          { label: t('pl.m.rebuild'), icon: 'ai', fn: function () { rebuild(); }, off: !aiReady() },
+          { label: t('pl.m.rebuild'), icon: 'ai', fn: function () { withAi(rebuild); } },
           { sep: true },
           { label: t('pl.m.delete'), icon: 'trash', danger: true, fn: function () { if (confirm(t('pl.delConfirm', { title: plan.title }))) { PD.remove(plan.id); location.hash = '#/'; } } }
         ]);
@@ -578,7 +610,7 @@
         { label: t('pl.row.up'), icon: 'up', off: i === 0, fn: function () { PD.nudge(plan, s.id, -1); refreshAll(); } },
         { label: t('pl.row.down'), icon: 'down', off: i === last, fn: function () { PD.nudge(plan, s.id, 1); refreshAll(); } },
         { label: t('pl.row.dup'), icon: 'dup', fn: function () { PD.dupStage(plan, s.id); refreshAll(); toast(t('pl.dupDone')); } },
-        { label: t('pl.row.split'), icon: 'split', off: !aiReady(), fn: function () { split(i); } },
+        { label: t('pl.row.split'), icon: 'split', fn: function () { withAi(function () { split(i); }); } },
         { label: t('pl.row.newPhase'), icon: 'flag', fn: function () { askText(t('pl.phase.new'), t('pl.phase.name'), '', function (v) { if (v) { PD.startPhaseAt(plan, i, v); refreshAll(); } }, t('pl.phase.newHelp')); } },
         { sep: true },
         { label: t('pl.row.delete'), icon: 'trash', danger: true, fn: function () { removeStage(i); } }
@@ -658,7 +690,7 @@
       if (!n) {
         var e = el('div', 'pl-note'); e.appendChild(el('span', '', t('pl.empty')));
         e.appendChild(btn(t('pl.empty.add'), 'sm main', function () { insertAt(0, ''); }, 'plus'));
-        if (aiReady()) e.appendChild(btn(t('pl.m.rebuild'), 'sm', function () { rebuild(); }, 'ai'));
+        e.appendChild(btn(t('pl.m.rebuild'), 'sm', function () { withAi(rebuild); }, 'ai'));
         outline.appendChild(e); return;
       }
       var vt = el('div', 'pl-vtools'), cb = btn(t('pl.compact'), 'sm', function () { setCompact(!V.compact); cb.setAttribute('aria-pressed', V.compact ? 'true' : 'false'); }, 'dense', t('pl.compact.tip'));
@@ -812,6 +844,24 @@
       onDrag: function (d) { var n = plan.steps.length || 1; panel.scrollTop += d * outline.offsetHeight / n; }
     });
     V.road.update(roadModel(plan));
+    /* the wheel (or two fingers on the trackpad) over the road scrolls the list, just as it would over the list itself; the road follows. A mouse wheel's notch glides, a trackpad goes as it is. */
+    var glide = { to: 0, raf: 0, last: 0 };
+    function glideStep() {
+      if (Math.abs(panel.scrollTop - glide.last) > 1.5) { glide.raf = 0; return; }                  // something else scrolled the list meanwhile (keys, the scroll bar, a finger): it wins
+      var d = glide.to - panel.scrollTop;
+      if (Math.abs(d) < 0.8) { panel.scrollTop = glide.to; glide.raf = 0; return; }
+      panel.scrollTop += Math.abs(d) < 3 ? d : d * 0.28; glide.last = panel.scrollTop; glide.raf = requestAnimationFrame(glideStep);
+    }
+    scene.addEventListener('wheel', function (e) {
+      if (e.ctrlKey || e.metaKey || e.defaultPrevented) return;                                     // (pinch and ctrl+wheel are the browser's own zoom)
+      var dy = e.deltaY * (e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? panel.clientHeight : 1);
+      if (!dy || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      var max = Math.max(0, panel.scrollHeight - panel.clientHeight);
+      if (reduced || Math.abs(dy) < 40) { if (glide.raf) { cancelAnimationFrame(glide.raf); glide.raf = 0; } panel.scrollTop = clamp(panel.scrollTop + dy, 0, max); return; }
+      glide.to = clamp((glide.raf ? glide.to : panel.scrollTop) + dy, 0, max);
+      if (!glide.raf) { glide.last = panel.scrollTop; glide.raf = requestAnimationFrame(glideStep); }
+    }, { passive: false });
     var back = scrollMemo[plan.id], target = -1;
     if (cameFrom && cameFrom.plan === plan.id) { target = PD.indexOf(plan, cameFrom.id); cameFrom = null; }
     requestAnimationFrame(function () {
@@ -831,7 +881,7 @@
       if (offTheme) offTheme();
       scrollMemo[plan.id] = panel.scrollTop; currentRefresh = null;
       panel.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize);
-      if (V.raf) cancelAnimationFrame(V.raf); if (V.ctl) V.ctl.abort();
+      if (V.raf) cancelAnimationFrame(V.raf); if (glide.raf) cancelAnimationFrame(glide.raf); if (V.ctl) V.ctl.abort();
       if (V.road) V.road.destroy();
       PD.save();
     };
@@ -892,6 +942,6 @@
   }
 
   global.PlanUI = { el: el, ic: ic, btn: btn, clamp: clamp, debounce: debounce, autosize: autosize, fmtD: fmtD, fmtRange: fmtRange, fmtDur: fmtDur, fmtMin: fmtMin, hue: hue, toast: toast, withUndo: withUndo, menu: menu, closeMenu: closeMenu,
-    openDialog: openDialog, closeDialog: closeDialog, askText: askText, aiReady: aiReady, aiFail: aiFail, setCrumb: setCrumb, roadModel: roadModel, main: main, openEditPlan: openEditPlan, reduced: reduced, goTo: goTo, slab: slab, numFor: numFor, refresh: function () { if (currentRefresh) currentRefresh(); } };
+    openDialog: openDialog, closeDialog: closeDialog, askText: askText, aiReady: aiReady, aiFail: aiFail, openAiSetup: openAiSetup, withAi: withAi, aiNote: aiNote, setCrumb: setCrumb, roadModel: roadModel, main: main, openEditPlan: openEditPlan, reduced: reduced, goTo: goTo, slab: slab, numFor: numFor, refresh: function () { if (currentRefresh) currentRefresh(); } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', route); else route();     // (plan-stage.js is loaded after this file, so wait for every script)
 })(window);

@@ -80,6 +80,7 @@
   function fillOf(g, s) { return GoalMath.fillOf(g, s, hist()); }
   function progress(g) { return GoalMath.progress(g, hist()); }
   function pct(g) { return Math.round(progress(g) * 100); }
+  function longGoal(g) { var a = parse(g.created), b = parse(g.date); return !!(a && b) && Dodeca.isLong(nDays(a, b) + 1); }      // three years or more: its die is the twelve stars
   function fmtMin(m) {
     m = Math.round(m);
     if (m < 60) return t('dur', { n: m, u: t('unit.min') });
@@ -218,10 +219,10 @@
   }
 
   /* the dice: one object per goal for as long as the scene lives, so each keeps its look, its highlight and its hit area while the road moves */
-  function dieFor(id, ghost) {
-    for (var i = 0; i < dice.length; i++) if (dice[i].id === id) return dice[i];
+  function dieFor(id, ghost, long) {
+    for (var i = 0; i < dice.length; i++) if (dice[i].id === id) { dice[i].style = Dodeca.styleOf(id, long); return dice[i]; }
     var hit = sv('g', { class: 'die' + (ghost ? ' ghost' : '') }, gHit); sv('circle', { class: 'hit' }, hit);
-    var d = { id: id, g: hit, o: { x: 0, y: 0, r: 1, lit: 0, ghost: ghost, phase: 0, hue: 215 }, style: Dodeca.styleOf(id), hl: 0, hot: false, wired: false, click: null, labels: null, front: -1, pk: {} };
+    var d = { id: id, g: hit, o: { x: 0, y: 0, r: 1, lit: 0, ghost: ghost, phase: 0, hue: 215 }, style: Dodeca.styleOf(id, long), hl: 0, hot: false, wired: false, click: null, labels: null, front: -1, pk: {} };
     dice.push(d); return d;
   }
   function placeDie(d, o, label, click) {
@@ -503,11 +504,11 @@
     });
 
     // the goals: floating dodecahedra
-    function goalDie(x, ground, r, lit, label, ghost, phase, onClick, id, hue, cy) {
+    function goalDie(x, ground, r, lit, label, ghost, phase, onClick, id, hue, cy, long) {
       if (cy == null) cy = ground - r * 1.05;
       sv('ellipse', { cx: x, cy: ground, rx: r * 1.25, ry: r * 0.28, fill: 'url(#fuShadow)' }, svg);
       sv('circle', { cx: x, cy: cy, r: r * 1.7, class: 'halo', opacity: ghost ? 0.25 : (0.35 + 0.65 * lit / 12).toFixed(2), fill: 'url(#fuGlow)' }, svg);
-      var d = dieFor(id, ghost); placeDie(d, { x: x, y: cy, r: r, lit: lit, ghost: ghost, phase: phase, id: id, hue: hue }, label, onClick);
+      var d = dieFor(id, ghost, long); placeDie(d, { x: x, y: cy, r: r, lit: lit, ghost: ghost, phase: phase, id: id, hue: hue }, label, onClick);
       return d;
     }
     if (md === 'goal') {
@@ -515,14 +516,14 @@
         var q = gd.front, r = e && e.clientX != null && dieCv ? dieCv.getBoundingClientRect() : null;
         if (r) { var h = Dodeca.hit(gd.pk, e.clientX - r.left, e.clientY - r.top); if (h >= 0) q = h; }
         var it = items[q]; if (it) enter(it.stage);
-      } : null, 'g:' + g.id, g.hue, cyG);
+      } : null, 'g:' + g.id, g.hue, cyG, longGoal(g));
       gd.labels = items ? items.map(function (z) { return z.text; }) : null;
       var tt = sv('text', { x: cx, y: Math.max(15, cyG - rG * 1.15 - 13), class: 'goal-t', 'text-anchor': 'middle', 'font-size': 14 }, svg);
       fit(tt, g.title, W - 28, 14, 700, famHead);
     } else if (md === 'all') {
       G.gs.slice().sort(function (a, b) { return daysTo(a.date) - daysTo(b.date); }).forEach(function (x, j) {
         var yG = yOf(daysTo(x.date)), r = 20 + 26 * sOf(yG), side = j % 2 ? 1 : -1, px = cx + side * half(yG) * 0.42;
-        goalDie(px, yG, r, Math.round(pct(x) / 100 * 12), x.title, false, j * 1.3, function () { st.sel = x.id; save(); render(true); }, 'g:' + x.id, x.hue);
+        goalDie(px, yG, r, Math.round(pct(x) / 100 * 12), x.title, false, j * 1.3, function () { st.sel = x.id; save(); render(true); }, 'g:' + x.id, x.hue, undefined, longGoal(x));
         var room = side > 0 ? W - (px + r * 1.5) - 8 : px - r * 1.5 - 44;      // on the left, stay clear of the time marks
         if (room > 48) {
           var tx = sv('text', { x: side > 0 ? px + r * 1.5 : px - r * 1.5, y: yG - r - 2, class: 'goal-t sm', 'text-anchor': side > 0 ? 'start' : 'end', 'font-size': 12 }, svg);

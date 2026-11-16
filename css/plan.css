@@ -187,6 +187,72 @@ body.v-plan .pl-top::before { display: none; }
 .pl-note { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 11px 15px; border-radius: 18px; background: var(--soft); border: 1px solid var(--line); font-size: 14px; }
 .pl-note.warn { border-color: var(--warn-line); background: var(--warn-bg); }
 .pl-note span { flex: 1 1 240px; }
+.pl-ainote .pl-btn { flex: none; }
+.pl-long { margin: -2px 0 14px; line-height: 1.5; }
+.pl-long::before { content: '✦'; margin-right: 6px; color: var(--gold-ring); }
+.pl-long.on { color: var(--accent-ink); font-weight: 600; }
+
+/* ---- the AI platforms (js/ai-setup.js draws the list; in the plan pages it opens in a window, each platform folded until it is opened) ---- */
+.pl-prov-list { display: flex; flex-direction: column; gap: 8px; max-height: min(54vh, 460px); max-height: min(54dvh, 460px); overflow-y: auto; overscroll-behavior: contain; padding: 2px 3px 4px; margin: 0 -3px; }
+.pl-prov { border: 1px solid var(--line2); border-radius: 18px; padding: 8px 10px 10px 14px; background: var(--wash); transition: border-color .15s, background .15s; }
+.pl-prov.on { border-color: var(--accent); background: var(--wash2); }
+.pl-prov.closed { padding-bottom: 8px; }
+.pl-prov-head { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.pl-prov-name { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 4px; font: 650 14.5px/1.25 var(--f-body); cursor: pointer; }
+.pl-prov-name input { flex: none; width: 17px; height: 17px; margin: 0 6px 0 0; accent-color: var(--accent); }
+.pl-prov-move { display: flex; gap: 4px; flex: none; }
+.pl-prov-move .pl-btn { width: 30px; padding: 0; }
+.pl-prov-info { margin: 4px 0 10px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.pl-prov-info a { color: var(--accent-ink); font-weight: 600; }
+.pl-prov-row { display: grid; grid-template-columns: 4.4em minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+.pl-prov-row input { min-width: 0; height: 36px; border: 1px solid var(--line2); border-radius: 12px; padding: 0 12px; background: var(--field); color: var(--fg); font: 13px var(--f-mono); }
+.pl-prov-row input:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; }
+.pl-prov-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pl-prov-res { min-width: 0; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.pl-prov-res.ok { color: var(--good); font-weight: 600; }
+.pl-prov-res.bad { color: var(--bad); }
+.pl-prov-state { margin-right: auto; align-self: center; flex: 1 1 200px; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.pl-prov-state.ok { color: var(--good); font-weight: 600; }
+
+/* ---- methods: ways of studying or working. One card for a method (in the library window and on the stage page) and the window itself ---- */
+.pl-dlg.wide { width: min(700px, calc(100vw - 20px)); }
+.pl-dlg .pl-mform { padding: 0; }
+.pl-mtabs { display: flex; width: 100%; margin: 0 0 12px; }
+.pl-mtabs button { flex: 1 1 auto; white-space: nowrap; }
+.pl-mchips { margin-top: 10px; }
+.pl-mchips .pl-chip { padding: 4px 11px; }
+.pl-msub { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--line2); }
+.pl-mnote { margin: 10px 2px 8px; }
+.pl-mnote:empty { display: none; }
+.pl-mlist { max-height: min(46vh, 430px); max-height: min(46dvh, 430px); overflow-y: auto; overscroll-behavior: contain; padding: 2px 3px 4px; margin: 6px -3px 0; }
+.pl-mh { margin: 14px 2px 8px; font: 700 13px/1.3 var(--f-body); color: var(--muted); }
+.pl-mempty { margin: 22px 8px; color: var(--muted); text-align: center; font-size: 14px; line-height: 1.55; }
+.pl-mc { padding: 11px 10px 9px 14px; margin-bottom: 8px; border-radius: 20px; background: var(--wash); border: 1px solid var(--line); }
+.pl-mc-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
+.pl-mc-name { flex: 0 1 auto; min-width: 0; font: 700 15.5px/1.35 var(--f-head); overflow-wrap: anywhere; }
+.pl-mc-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.pl-mc-tags i { font: 600 11.5px/1 var(--f-body); font-style: normal; padding: 4px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); }
+.pl-mc-act { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.pl-mc-sum { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.pl-mc-more { margin-top: 3px; }
+.pl-mc-more > summary, .pl-mc-orig > summary { cursor: pointer; color: var(--accent-ink); font-size: 13px; font-weight: 600; padding: 4px 0; width: max-content; max-width: 100%; border-radius: 8px; }
+.pl-mc-more > summary:focus-visible, .pl-mc-orig > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pl-mc-steps { margin: 4px 0 6px; padding-left: 22px; display: grid; gap: 4px; font-size: 14px; line-height: 1.5; }
+.pl-mc-steps li { padding-left: 2px; overflow-wrap: anywhere; }
+.pl-mc-orig > p { margin: 4px 0 6px; padding: 8px 10px; max-height: 190px; overflow-y: auto; border-radius: 12px; background: var(--field); color: var(--muted); font-size: 13px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pl-mc-links { display: flex; flex-wrap: wrap; gap: 2px 16px; margin: 4px 0 2px; font-size: 13px; }
+.pl-mc-links a { color: var(--accent-ink); text-underline-offset: 3px; }
+.pl-mpaste { margin: 0 0 10px; padding: 12px 12px 12px; border-radius: 20px; background: var(--wash); border: 1px solid var(--line); }
+.pl-mpaste .pl-dsub { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; }
+.pl-mtidy { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.pl-mmsg { margin: 0 2px 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pl-mmsg:empty { display: none; }
+.pl-mmsg.bad { color: var(--bad); white-space: pre-line; }
+.pl-mform .pl-ta[rows] { min-height: 0; }
+@media (max-width: 520px) {
+  .pl-mtabs button { padding: 6px 9px; font-size: 12.5px; }
+  .pl-mlist { max-height: min(40vh, 330px); max-height: min(40dvh, 330px); }
+}
 
 /* ================= the road (plan-road.js draws it as SVG): a pale morning haze by day, a night sky with stars after dark ================= */
 .pr { position: relative; width: 100%; height: 100%; overflow: hidden; }
@@ -216,6 +282,7 @@ body.v-plan .pl-top::before { display: none; }
 .pr-tg.here .pr-t { filter: drop-shadow(0 2px 6px oklch(.42 .12 var(--tk, 206) / .45)); }
 .pr-tg.foc .pr-t { stroke: var(--rim); stroke-width: 1.8; }
 .pr-tx { fill: hsl(var(--h) 40% 14%); font-family: var(--f-body); font-weight: 650; pointer-events: none; paint-order: stroke; stroke: hsl(0 0% 100% / .55); stroke-width: 2.6px; stroke-linejoin: round; }
+.pr-tx.sm { font-weight: 700; stroke-width: 1.7px; }
 .pr-tg.done .pr-tx { fill: hsl(var(--h) 50% 9%); }
 .pr-tg.doing .pr-tx { fill: #fff; stroke: hsl(var(--h) 60% 10% / .35); }
 .pr-tick { stroke: var(--tick); stroke-width: 1; } .pr-tick.major { stroke-width: 1.6; stroke: var(--tick2); }
